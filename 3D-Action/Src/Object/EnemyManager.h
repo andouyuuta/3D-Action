@@ -22,5 +22,5 @@ private:
 	int enemymodel_;
 	int bossenemymodel_;
 
-	static constexpr int ENEMY_COUNT = 100;	// “G‚Ì”
+	static constexpr int ENEMY_COUNT = 10;	// “G‚Ì”
 };
