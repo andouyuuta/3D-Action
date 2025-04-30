@@ -80,6 +80,9 @@ public:
 		bool comboflg_;	//コンボしているか
 		int combostep_;			//コンボ段階
 
+		float currentratio_;	//現在のアニメーションの再生時間(割合)
+		float remainingtime_;	//アニメーションがあとどれくらいで終わるか
+
 	};
 
 	Player(void);		// コンストラクタ
@@ -106,6 +109,7 @@ private:
 	void PlayerMove(int idle, int walk, int run);		//プレイヤーの動き
 	bool CrouchUpdate(void);							//しゃがみ
 	bool AttackUpdate(void);							//攻撃
+	bool AttackCombo(int nowcombo, int nextanimidx, int nextstep, float reception, float remainingtime);
 	void PlayAnimation(void);							//アニメーション再生
 	void DebugAnimation(void);							//数字キーでアニメーション切り替え
 	void ChangeAnimation(int idx, bool lock = false);	//アニメーション切り替え

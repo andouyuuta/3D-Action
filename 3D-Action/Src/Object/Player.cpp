@@ -96,6 +96,9 @@ void Player::GameInit(void)
 	list.animlockflg_ = false;
 	MV1SetAttachAnimTime(list.modelid_, list.animAttachNo_, list.currentAnimTime_);
 
+	list.currentratio_ = 0.0f;
+	list.remainingtime_ = 0.0f;
+
 }
 
 void Player::Update(void)
@@ -268,6 +271,49 @@ bool Player::CrouchUpdate(void)
 
 bool Player::AttackUpdate(void)
 {
+	//InputManager& ins = InputManager::GetInstance();
+
+	//if (!list.attackflg_ && ins.IsTrgMouseLeft())
+	//{
+	//	list.attackflg_ = true;
+	//	list.combostep_ = 1;
+	//	list.comboflg_ = false;
+	//	ChangeAnimation(Attack_1, true);
+	//	return true;
+	//}
+
+	////攻撃１中にアニメーションが半分以上進んでいたら攻撃２
+	//if (list.attackflg_ && list.combostep_ == 1)
+	//{
+	//	//現在のアニメーション時間(割合)
+	//	float currentratio = list.currentAnimTime_ / list.animTotalTime_;
+
+	//	//アニメーションが半分以上＋左クリック押したとき
+	//	if (currentratio >= 0.5f && ins.IsTrgMouseLeft())
+	//	{
+	//		list.comboflg_ = true;
+	//	}
+
+	//	//アニメーションの残り時間
+	//	float remainingtime = list.animTotalTime_ - list.currentAnimTime_;
+	//	if (remainingtime <= 0.0f && list.comboflg_)
+	//	{
+	//		ChangeAnimation(Attack_3, true);
+	//		list.combostep_ = 2;
+	//		list.comboflg_ = false;
+	//		return true;
+	//	}
+	//}
+
+	////アニメーションが終わったら攻撃解除
+	//if (!list.animlockflg_ && list.attackflg_)
+	//{
+	//	list.attackflg_ = false;
+	//	list.combostep_ = 0;
+	//	list.comboflg_ = false;
+	//}
+
+	//return list.attackflg_;		//攻撃中か
 	InputManager& ins = InputManager::GetInstance();
 
 	if (!list.attackflg_ && ins.IsTrgMouseLeft())
@@ -279,28 +325,9 @@ bool Player::AttackUpdate(void)
 		return true;
 	}
 
-	//攻撃１中にアニメーションが半分以上進んでいたら攻撃２
-	if (list.attackflg_ && list.combostep_ == 1)
-	{
-		//現在のアニメーション時間(割合)
-		float currentratio = list.currentAnimTime_ / list.animTotalTime_;
-
-		//アニメーションが半分以上＋左クリック押したとき
-		if (currentratio >= 0.5f && ins.IsTrgMouseLeft())
-		{
-			list.comboflg_ = true;
-		}
-
-		//アニメーションの残り時間
-		float remainingtime = list.animTotalTime_ - list.currentAnimTime_;
-		if (remainingtime <= 0.0f && list.comboflg_)
-		{
-			ChangeAnimation(Attack_3, true);
-			list.combostep_ = 2;
-			list.comboflg_ = false;
-			return true;
-		}
-	}
+	if(AttackCombo(1, Attack_3, 2, 0.5f, 5.0f))return true;
+	if(AttackCombo(2, Attack_4, 3, 0.5f, 15.0f))return true;
+	if(AttackCombo(3, Attack_2, 4, 0.5f, 15.0f))return true;
 
 	//アニメーションが終わったら攻撃解除
 	if (!list.animlockflg_ && list.attackflg_)
@@ -312,6 +339,37 @@ bool Player::AttackUpdate(void)
 
 	return list.attackflg_;		//攻撃中か
 }
+
+//攻撃コンボ(今のコンボ、次のアニメーション、次の段階、入力受付時間(後ろからの割合)、アニメーションスキップ時間(後ろから))
+bool Player::AttackCombo(int nowcombo, int nextanimidx, int nextstep, float reception, float remainingtime)
+{
+	InputManager& ins = InputManager::GetInstance();
+
+	//攻撃１中にアニメーションが半分以上進んでいたら攻撃２
+	if (list.attackflg_ && list.combostep_ == nowcombo)
+	{
+		//現在のアニメーション時間(割合)
+		list.currentratio_ = list.currentAnimTime_ / list.animTotalTime_;
+
+		//アニメーションが半分以上＋左クリック押したとき
+		if (list.currentratio_ >= reception && ins.IsTrgMouseLeft())
+		{
+			list.comboflg_ = true;
+		}
+
+		//アニメーションの残り時間
+		list.remainingtime_ = list.animTotalTime_ - list.currentAnimTime_;
+		if (list.remainingtime_ <= remainingtime && list.comboflg_)
+		{
+			ChangeAnimation(nextanimidx, true);
+			list.combostep_ = nextstep;
+			list.comboflg_ = false;
+			return true;
+		}
+	}
+	return false;
+}
+
 
 void Player::PlayerMove(int idle, int walk, int run)
 {
