@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Src\Manager\SoundManager.cpp" />
     <ClCompile Include="Src\Object\BossEnemy.cpp" />
     <ClCompile Include="Src\Object\EnemyManager.cpp" />
     <ClCompile Include="Src\Object\Enemy.cpp" />
@@ -38,8 +39,10 @@
     <ClCompile Include="Src\Scene\SceneBase.cpp" />
     <ClCompile Include="Src\Scene\Title.cpp" />
     <ClCompile Include="Src\Utility\Utility.cpp" />
+    <ClCompile Include="Src\Object\Sword.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Src\Manager\SoundManager.h" />
     <ClInclude Include="Src\Object\BossEnemy.h" />
     <ClInclude Include="Src\Object\EnemyManager.h" />
     <ClInclude Include="Src\Object\Enemy.h" />
@@ -59,6 +62,7 @@
     <ClInclude Include="Src\Scene\SceneBase.h" />
     <ClInclude Include="Src\Scene\Title.h" />
     <ClInclude Include="Src\Utility\Utility.h" />
+    <ClInclude Include="Src\Object\Sword.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

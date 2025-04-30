@@ -46,7 +46,7 @@ public:
 	static constexpr int Attack_4 = 18;					//攻撃４
 	static constexpr int Death = 19;					//死亡
 
-	// 敵の情報の構造体
+	// プレイヤーの情報の構造体
 	struct Info
 	{
 		int modelid_;			// モデルID

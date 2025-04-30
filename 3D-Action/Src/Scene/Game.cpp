@@ -5,6 +5,7 @@
 #include "../Manager/Camera.h"
 #include "../Object/Grid.h"
 #include "../Object/Player.h"
+#include "../Object/Sword.h"
 #include "../Object/Enemy.h"
 #include "../Object/EnemyManager.h"
 #include "../Application.h"
@@ -16,8 +17,10 @@ Game::Game(void)
 {
 	grid_ = nullptr;
 	player_ = nullptr;
+	sword_ = nullptr;
 	enemy_ = nullptr;
 	enemymng_ = nullptr;
+	camera_ = nullptr;
 }
 
 // デストラクタ
@@ -29,9 +32,6 @@ Game::~Game(void)
 // 初期化
 void Game::Init(void)
 {
-	// 画像の読み込み5
-	dot_ = LoadGraph("Data/Image/Dot_8.png");
-
 	// グリッド初期化
 	grid_ = new Grid();
 	grid_->SystemInit();
@@ -43,6 +43,10 @@ void Game::Init(void)
 	// プレイヤー初期化
 	player_ = new Player();
 	player_->SystemInit();
+
+	//剣初期化
+	sword_ = new Sword();
+	sword_->Init();
 
 	enemymng_ = new EnemyManager();
 	enemymng_->Init();
@@ -72,6 +76,9 @@ void Game::Update(void)
 	// プレイヤー更新
 	player_->Update();
 
+	//剣更新
+	sword_->Update();
+
 	enemymng_->Update();
 
 	// シーン遷移
@@ -95,14 +102,14 @@ void Game::Draw(void)
 	// プレイヤー描画
 	player_->Draw();
 
+	//剣描画
+	sword_->Draw();
+
 	//enemy_->Draw();
 	enemymng_->Draw();
 
 	// カメラ設定
 	camera_->SetBeforeDraw();
-
-	// 画像の描画S
-	DrawGraph(Application::HALF_SCREEN_SIZE_X - 2, Application::HALF_SCREEN_SIZE_Y - 2, dot_, true);
 
 	// 文字の描画
 	DrawFormatString(20, 20, GetColor(0xff, 0xff, 0xff), "ゲーム画面");
@@ -123,6 +130,10 @@ void Game::Release(void)
 	// カメラの解放
 	camera_->Release();
 	delete camera_;
+
+	//剣の解放
+	sword_->Release();
+	delete sword_;
 
 	// プレイヤーの解放
 	player_->Release();

@@ -1,6 +1,7 @@
 #include <DxLib.h>
 #include "Manager/InputManager.h"
 #include "Manager/SceneManager.h"
+#include "Manager/SoundManager.h"
 #include "Application.h"
 
 // インスタンスの生成
@@ -52,6 +53,9 @@ void Application::Init(void)
 	SetUseDirectInputFlag(true);
 	InputManager::CreateInstance();
 
+	//サウンド初期化
+	SoundManager::CreateInstance();
+
 	// シーン管理初期化
 	SceneManager::CreateInstance();
 
@@ -97,6 +101,10 @@ void Application::Run(void)
 // リソースの解放
 void Application::Release(void)
 {
+	// SE管理の開放処理
+	SoundManager* soundMng = SoundManager::GetInstance();
+	soundMng->DeleteInstance();
+
 	// DxLib終了
 	if (DxLib_End() == -1)
 	{

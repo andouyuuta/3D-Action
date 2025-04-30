@@ -4,6 +4,7 @@
 class Camera;
 class Grid;
 class Player;
+class Sword;
 class Enemy;
 class EnemyManager;
 
@@ -22,9 +23,6 @@ public:
 	void Release(void) override;	// 解放
 
 private:
-	// レティクル
-	int dot_;
-
 	// グリッド線
 	Grid* grid_;
 
@@ -34,10 +32,10 @@ private:
 	// プレイヤー
 	Player* player_;
 
+	//剣
+	Sword* sword_;
+
 	//敵
 	Enemy* enemy_;
 	EnemyManager* enemymng_;
-
-	// 画像
-
 };

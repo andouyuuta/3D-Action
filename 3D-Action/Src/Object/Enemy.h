@@ -31,6 +31,9 @@ public:
 		RUN,		// 走る
 	};
 
+	// 敵の最大HP
+	static constexpr int ENEMY_MAX_HP = 10;
+
 	// 敵の情報の構造体
 	struct Info
 	{
@@ -42,6 +45,7 @@ public:
 		float moveSpeed_;		//移動スピード
 		int moveDir_;			//移動方向
 		int moveKind_;			//プレイヤーの移動状態
+		int hp_;				// HP
 
 		// 移動ベクトル
 		VECTOR moveVec_;		//移動ベクトル
@@ -68,6 +72,21 @@ public:
 	void Draw(void);	// 描画
 	void Release(void); // 解放
 
+	// 死亡フラグ
+	bool IsDead()const;
+
+	// セッター関数
+	void SetEnemyPos(const VECTOR& pos);		// 敵の座標の設定
+
+	// ゲッター関数
+	struct Info GetInfo(void) { return list; }
+
+	// 敵の現在位置の取得する（外部から読み取り専用）
+	VECTOR GetPosition()const;
+	int	   GetHP()const;
+
+	// 敵のHPを減らす
+	void SetDamage(int dp);
 
 	// デバックの描画
 	void DrawDebug(void);

@@ -2,6 +2,27 @@
 #include "../Application.h"
 #include "../Manager/InputManager.h"
 
+namespace
+{
+	// 移動量
+	const float MOVE_SPEED_WALK = 2.5f;	// 歩き
+	const float MOVE_SPEED_RUN = 8.0f;	// 走る
+	const float MOVE_SPEED_STOP = 0.0f;
+
+	// 初期モデル補正角度
+	const VECTOR INIT_MODEL_ROT_OFFSET = { 0.0f,DX_PI_F / 2.0f,0.0f };
+
+	// 向いている方向
+	const VECTOR INIT_DIR = { 0.0f,0.0f,-1.0f };
+
+	// 視野角
+	const float VIEW_ANGLE = 30.0f;
+
+	// アニメーションの再生速度
+	const float ANIM_SPEED = 0.5f;		// 生きている時
+	const float DEAD_ANIM_SPEED = 0.2f;	// 死んでいる時
+}
+
 Enemy::Enemy(void)
 {
 	list.modelid_ = -1;
@@ -46,8 +67,12 @@ void Enemy::Init(int org)
 	list.rot_ = { 0.0f,0.0f,0.0f };
 	MV1SetRotationXYZ(list.modelid_, list.rot_);
 
+	// 敵のHPの初期化
+	list.hp_ = ENEMY_MAX_HP;
+
+
 	//アニメーション関連
-	list.animindex_ = 0;			
+	list.animindex_ = 0;
 	list.animAttachNo_ = MV1AttachAnim(list.modelid_, list.animindex_);
 	list.animTotalTime_ = MV1GetAttachAnimTotalTime(list.modelid_, list.animAttachNo_);
 	list.currentAnimTime_ = 0.0f;
@@ -74,6 +99,44 @@ void Enemy::Draw(void)
 void Enemy::Release(void)
 {
 	MV1DeleteModel(list.modelid_);
+}
+
+// 死亡フラグ
+bool Enemy::IsDead() const
+{
+	return list.deadflg_;
+}
+
+void Enemy::SetEnemyPos(const VECTOR& pos)
+{
+	list.pos_ = pos;
+	MV1SetPosition(list.modelid_, list.pos_);
+}
+
+
+// 敵の現在位置の取得する（外部から読み取り専用）
+VECTOR Enemy::GetPosition() const
+{
+	return list.pos_;
+}
+
+// 敵のHPの取得
+int Enemy::GetHP() const
+{
+	return list.hp_;
+}
+
+// 敵のHPを減らす
+void Enemy::SetDamage(int dp)
+{
+	list.hp_ -= dp;
+	// HPが0以下なら死亡状態へ移行
+	if (list.hp_ <= 0)
+	{
+		list.hp_ = 0;
+		// 死んだフラグ
+		list.deadflg_ = true;
+	}
 }
 
 //移動
@@ -183,7 +246,7 @@ void Enemy::PlayAnimation(void)
 
 	switch (list.animindex_)
 	{
-	//ループさせる
+		//ループさせる
 	case 0:			//待機
 	case 1:			//歩く
 	case 2:			//走る
@@ -193,7 +256,7 @@ void Enemy::PlayAnimation(void)
 			list.currentAnimTime_ = 0.0f;
 		}
 		break;
-	//ループさせない
+		//ループさせない
 	case 3:			//攻撃
 		list.currentAnimTime_ += ANIM_SPEED;
 		if (list.currentAnimTime_ >= list.animTotalTime_)

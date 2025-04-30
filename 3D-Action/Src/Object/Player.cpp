@@ -8,29 +8,30 @@ Player::Player(void)
 {
 	list.modelid_ = -1;
 
-	VECTOR pos_ = { 0.0f,0.0f,0.0f };
-	VECTOR rot_ = { 0.0f,0.0f,0.0f };
-	VECTOR scale_ = { 0.0f,0.0f,0.0f };
-	float moveSpeed_ = 0.0f;
-	int moveDir_ = 0;
-	int moveKind_ = 0;
+	list. pos_ = { 0.0f,0.0f,0.0f };
+	list.rot_ = { 0.0f,0.0f,0.0f };
+	list.scale_ = { 0.0f,0.0f,0.0f };
+	list.moveSpeed_ = 0.0f;
+	list.moveDir_ = 0;
+	list.moveKind_ = 0;
 
-	VECTOR moveVec_ = { 0.0f,0.0f,0.0f };
-	VECTOR oldMoveVec_ = { 0.0f,0.0f,0.0f };
-	VECTOR moveVecRad_ = { 0.0f,0.0f,0.0f };
+	list.moveVec_ = { 0.0f,0.0f,0.0f };
+	list.oldMoveVec_ = { 0.0f,0.0f,0.0f };
+	list.moveVecRad_ = { 0.0f,0.0f,0.0f };
 
-	VECTOR localRot_ = { 0.0f,0.0f,0.0f };
+	list.localRot_ = { 0.0f,0.0f,0.0f };
 
-	int animindex_ = 0;
-	int  animAttachNo_ = 0;
-	float animTotalTime_ = 0.0f;
-	float currentAnimTime_ = 0.0f;
-	bool animlockflg_ = false;
+	list.animindex_ = 0;
+	list.animAttachNo_ = 0;
+	list.animTotalTime_ = 0.0f;
+	list.currentAnimTime_ = 0.0f;
+	list.animlockflg_ = false;
 
-	bool isdead_ = false;
-	bool crouchflg_ = false;
-	bool crouchattachflg_ = false;
-	bool weaponflg_ = false;
+	list.isdead_ = false;
+	list.crouchflg_ = false;
+	list.crouchattackflg_ = false;
+	list.weaponflg_ = false;
+
 }
 
 Player::~Player(void)
@@ -333,10 +334,10 @@ void Player::PlayerMove(int idle, int walk, int run)
 		{
 			return;
 		}
-	}
-	if (AttackUpdate())
-	{
-		return;
+		if (AttackUpdate())
+		{
+			return;
+		}
 	}
 
 

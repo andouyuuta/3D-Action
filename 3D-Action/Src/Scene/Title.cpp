@@ -11,7 +11,7 @@
 // コンストラクタ
 Title::Title(void) : SceneBase()
 {
-
+	mouseFlg_ = false;
 }
 
 // デストラクタ

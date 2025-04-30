@@ -10,7 +10,7 @@
 // コンストラクタ
 GameClear::GameClear(void) : SceneBase()
 {
-
+	mouseFlg_ = false;
 }
 
 // デストラクタ
