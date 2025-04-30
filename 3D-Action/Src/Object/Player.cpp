@@ -116,11 +116,6 @@ void Player::UpdateMove(void)
 	// 入力制御取得
 	InputManager& ins = InputManager::GetInstance();
 
-	/*if (list.animlockflg_)
-	{
-		return;
-	}*/
-
 	//死亡時にも移動させない
 	if (list.isdead_)
 	{
@@ -271,49 +266,6 @@ bool Player::CrouchUpdate(void)
 
 bool Player::AttackUpdate(void)
 {
-	//InputManager& ins = InputManager::GetInstance();
-
-	//if (!list.attackflg_ && ins.IsTrgMouseLeft())
-	//{
-	//	list.attackflg_ = true;
-	//	list.combostep_ = 1;
-	//	list.comboflg_ = false;
-	//	ChangeAnimation(Attack_1, true);
-	//	return true;
-	//}
-
-	////攻撃１中にアニメーションが半分以上進んでいたら攻撃２
-	//if (list.attackflg_ && list.combostep_ == 1)
-	//{
-	//	//現在のアニメーション時間(割合)
-	//	float currentratio = list.currentAnimTime_ / list.animTotalTime_;
-
-	//	//アニメーションが半分以上＋左クリック押したとき
-	//	if (currentratio >= 0.5f && ins.IsTrgMouseLeft())
-	//	{
-	//		list.comboflg_ = true;
-	//	}
-
-	//	//アニメーションの残り時間
-	//	float remainingtime = list.animTotalTime_ - list.currentAnimTime_;
-	//	if (remainingtime <= 0.0f && list.comboflg_)
-	//	{
-	//		ChangeAnimation(Attack_3, true);
-	//		list.combostep_ = 2;
-	//		list.comboflg_ = false;
-	//		return true;
-	//	}
-	//}
-
-	////アニメーションが終わったら攻撃解除
-	//if (!list.animlockflg_ && list.attackflg_)
-	//{
-	//	list.attackflg_ = false;
-	//	list.combostep_ = 0;
-	//	list.comboflg_ = false;
-	//}
-
-	//return list.attackflg_;		//攻撃中か
 	InputManager& ins = InputManager::GetInstance();
 
 	if (!list.attackflg_ && ins.IsTrgMouseLeft())
