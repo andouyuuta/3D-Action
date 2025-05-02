@@ -1,10 +1,11 @@
 #include "EnemyManager.h"
 #include "../Application.h"
+#include "Player.h"
 
 // コンストラクタ
 EnemyManager::EnemyManager(void)
-	:enemymodel_(-1), bossenemymodel_(-1)
 {
+	enemymodel_ = -1; bossenemymodel_ = -1;
 }
 
 // デストラクタ
@@ -36,7 +37,7 @@ void EnemyManager::Init(void)
 }
 
 // 更新
-void EnemyManager::Update(void)
+void EnemyManager::Update()
 {
 	//複数の敵の更新
 	for (Enemy* enemy : enemyies_)

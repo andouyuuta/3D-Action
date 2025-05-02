@@ -3,6 +3,27 @@
 #include "../Manager/SceneManager.h"
 #include "../Manager/Camera.h"
 #include "Player.h"
+#include "Sword.h"
+#include "Enemy.h"
+#include "EnemyManager.h"
+#include "Stage.h"
+
+Player* Player::instance_ = nullptr;
+
+void Player::CreateInstance()
+{
+	if (instance_ == nullptr)
+	{
+		instance_ = new Player();
+	}
+	instance_->Init();
+}
+
+Player& Player::GetInstance(void)
+{
+	return *instance_;
+}
+
 
 Player::Player(void)
 {
@@ -32,23 +53,20 @@ Player::Player(void)
 	list.crouchattackflg_ = false;
 	list.weaponflg_ = false;
 
+	damageCooldown_ = 0;
 }
 
 Player::~Player(void)
 {
 }
 
-void Player::SystemInit(void)
-{
-}
-
-void Player::GameInit(void)
+void Player::Init(void)
 {
 	// モデルの読み込み
 	list.modelid_ = MV1LoadModel("Data/Model/PlayerModel.mv1");
 
 	// プレイヤーの初期位置設定
-	list.pos_ = { 0.0f, 0.0f, 0.0f };
+	list.pos_ = { 0.0f, 0.0f, -550.0f };
 	MV1SetPosition(list.modelid_, list.pos_);
 
 	// プレイヤーの角度設定
@@ -89,6 +107,12 @@ void Player::GameInit(void)
 	list.comboflg_ = false;
 	list.combostep_ = 0;
 
+	// HPの初期化
+	list.hp_ = PLAYER_MAX_HP;
+
+	// ダメージ間隔制御用
+	damageCooldown_ = 0;
+
 	//アニメーション関連
 	list.animindex_ = 1;
 	list.animAttachNo_ = MV1AttachAnim(list.modelid_, list.animindex_);
@@ -100,12 +124,14 @@ void Player::GameInit(void)
 	list.currentratio_ = 0.0f;
 	list.remainingtime_ = 0.0f;
 
+	MV1SetupCollInfo(list.modelid_);
 }
 
-void Player::Update(void)
+void Player::Update(const std::vector<Enemy*>& enemies)
 {
 	// アニメーション処理
  	PlayAnimation();
+	//CheckEnemyCollision(enemies);	// 当たり判定
 	//DebugAnimation();
 	//移動処理
 	UpdateMove();
@@ -153,25 +179,8 @@ void Player::Draw(void)
 	// モデルの描画
 	MV1DrawModel(list.modelid_);
 
-	// モデルの移動方向
-	if (IsMove(list.moveVec_))
-	{
-		// 移動ベクトルを正規化
-		VECTOR debugMoveVec = VNorm(list.moveVec_);
-
-		// 線の長さを設定
-		constexpr float DEBUG_MOVE_LINE_LENGTH = 100.0f;
-		debugMoveVec = VScale(debugMoveVec, DEBUG_MOVE_LINE_LENGTH);
-
-		// 線の終端座標を設定
-		VECTOR debugMoveVecLineEndPos = VAdd(list.pos_, debugMoveVec);
-
-		// 移動方向に線を描画
-		DrawLine3D(list.pos_, debugMoveVecLineEndPos, 0xffffff);
-	}
-
-	// プレイヤー座標表示
-	DrawFormatString(20, 120, GetColor(0xff, 0xff, 0xff), "プレイヤーの座標 : (X, Y, Z) = (% 1.2lf, % 1.2lf, % 1.2lf)", list.pos_.x, list.pos_.y, list.pos_.z);
+	//// プレイヤー座標表示
+	//DrawFormatString(20, 120, GetColor(0xff, 0xff, 0xff), "プレイヤーの座標 : (X, Y, Z) = (% 1.2lf, % 1.2lf, % 1.2lf)", list.pos_.x, list.pos_.y, list.pos_.z);
 }
 
 void Player::Release(void)
@@ -223,6 +232,54 @@ void Player::SetRotation(void)
 
 	// 行列を使用してモデルの角度を設定
 	MV1SetRotationMatrix(list.modelid_, mat);
+}
+
+// 当たり判定
+void Player::CheckEnemyCollision(const std::vector<Enemy*>& enemies)
+{
+	const float COLLISION_RADIUS = 50.0f;  // 判定範囲半径
+
+	for (auto& enemy : enemies)
+	{
+		// 死亡済みの敵は無視
+		if (enemy->IsDead()) continue;
+
+		VECTOR distVec = VSub(list.pos_, enemy->GetPosition());
+		// XZ平面のみ
+		distVec.y = 0.0f;
+
+		if (VSize(distVec) < COLLISION_RADIUS)
+		{
+			// プレイヤーを押し戻す
+			VECTOR pushDir = VNorm(distVec);
+			VECTOR pushBack = VScale(pushDir, COLLISION_RADIUS - VSize(distVec) + 0.1f);
+			list.pos_ = VAdd(list.pos_, pushBack);
+			MV1SetPosition(list.modelid_, list.pos_);
+			list.moveSpeed_ = MOVE_SPEED_STOP;
+
+			// 待機アニメーションに変更
+			ChangeAnimation(0);
+
+			if (damageCooldown_ <= 0)
+			{
+				// HPの減少
+				list.hp_ -= 10;
+				//クールタイム(60フレームに一回)
+				damageCooldown_ = 60;
+
+				// HPが0以下かつ死亡していなければ死亡処理
+				if (list.hp_ <= 0 && !list.isdead_)
+				{
+					list.isdead_ = true;
+					// 死亡アニメーション
+					ChangeAnimation(19, true);
+					SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::GAMEOVER);
+				}
+			}
+		}
+	}
+
+	if (damageCooldown_ > 0) damageCooldown_--;
 }
 
 bool Player::CrouchUpdate(void)
@@ -323,23 +380,15 @@ bool Player::AttackCombo(int nowcombo, int nextanimidx, int nextstep, float rece
 	return false;
 }
 
-
 void Player::PlayerMove(int idle, int walk, int run)
 {
 	InputManager& ins = InputManager::GetInstance();
 
 	if (list.weaponflg_)
 	{
-		if (CrouchUpdate())
-		{
-			return;
-		}
-		if (AttackUpdate())
-		{
-			return;
-		}
+		if (CrouchUpdate()) { return; }
+		if (AttackUpdate()) { return; }
 	}
-
 
 	// WASDでプレイヤー移動
 	list.moveVec_ = { 0.0f, 0.0f, 0.0f };
@@ -369,7 +418,6 @@ void Player::PlayerMove(int idle, int walk, int run)
 
 		// スタミナが切れているかどうか
 		bool spFlg_ = false;
-
 		if (spFlg_)
 		{
 			// スタミナない状態
@@ -416,6 +464,11 @@ void Player::PlayerMove(int idle, int walk, int run)
 		{
 			ChangeAnimation(idle);
 		}
+	}
+
+	if (list.pos_.y != 0.0f)
+	{
+		list.pos_.y = 0.0f;
 	}
 }
 

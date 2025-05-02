@@ -6,8 +6,9 @@
 #include "../Object/Grid.h"
 #include "../Object/Player.h"
 #include "../Object/Sword.h"
-#include "../Object/Enemy.h"
 #include "../Object/EnemyManager.h"
+#include "../Object/Stage.h"
+#include "../Object/Collision.h"
 #include "../Application.h"
 #include "../Manager/Camera.h"
 #include "Game.h"
@@ -18,8 +19,8 @@ Game::Game(void)
 	grid_ = nullptr;
 	player_ = nullptr;
 	sword_ = nullptr;
-	enemy_ = nullptr;
 	enemymng_ = nullptr;
+	stage_ = nullptr;
 	camera_ = nullptr;
 }
 
@@ -40,9 +41,12 @@ void Game::Init(void)
 	camera_ = new Camera();
 	camera_->Init();
 
+	Stage::CreateInstance();
+	Stage::GetInstance().Init();
+
 	// プレイヤー初期化
-	player_ = new Player();
-	player_->SystemInit();
+	Player::CreateInstance();
+	Player::GetInstance().Init();
 
 	//剣初期化
 	sword_ = new Sword();
@@ -51,17 +55,21 @@ void Game::Init(void)
 	enemymng_ = new EnemyManager();
 	enemymng_->Init();
 
+	collision_ = new Collision();
+	collision_->Init();
+
 	// グリッド初期化
 	grid_->GameInit();
-
-	// プレイヤー初期化
-	player_->GameInit();
 
 	// カメラの追従対象を設定
 	SceneManager& sceneManager = SceneManager::GetInstance();
 	Camera* camera = sceneManager.GetCamera();
 	camera->SetPlayer(player_);
 
+	// フォグ設定（薄紫色）
+	SetFogEnable(TRUE);
+	SetFogColor(60,80,60); // 明るい紫
+	SetFogStartEnd(1000.0f, 3000.0f);
 }
 
 // 更新
@@ -73,13 +81,17 @@ void Game::Update(void)
 	// カメラ更新
 	camera_->Update();
 
+	//敵更新
+	enemymng_->Update();
+
 	// プレイヤー更新
-	player_->Update();
+	Player::GetInstance().Update(enemymng_->GetEnemies());
 
 	//剣更新
 	sword_->Update();
 
-	enemymng_->Update();
+	//当たり判定
+	collision_->Update(enemymng_->GetEnemies());
 
 	// シーン遷移
 	InputManager& ins = InputManager::GetInstance();
@@ -96,16 +108,19 @@ void Game::Update(void)
 // 描画
 void Game::Draw(void)
 {
+	//ステージの描画
+	Stage::GetInstance().Draw();
+
+	collision_->Draw();
+
 	// グリッドの描画
-	grid_->Draw();
+	//grid_->Draw();
 
 	// プレイヤー描画
-	player_->Draw();
-
+	Player::GetInstance().Draw();
 	//剣描画
 	sword_->Draw();
 
-	//enemy_->Draw();
 	enemymng_->Draw();
 
 	// カメラ設定
@@ -136,9 +151,12 @@ void Game::Release(void)
 	delete sword_;
 
 	// プレイヤーの解放
-	player_->Release();
-	delete player_;
+	Player::GetInstance().Release();
 
+	//敵の解放
 	enemymng_->Release();
 	delete enemymng_;
+
+	//ステージの解放
+	Stage::GetInstance().Release();
 }

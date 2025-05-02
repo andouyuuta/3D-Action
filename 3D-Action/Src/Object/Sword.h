@@ -1,5 +1,6 @@
 #pragma once
 #include <DxLib.h>
+
 class Sword
 {
 public:
@@ -9,13 +10,16 @@ public:
 		VECTOR pos_;
 		VECTOR rot_;
 		VECTOR scale_;
+
+		int righthandidx_;
+		VECTOR righthandpos_;
 	};
 
 	Sword();
 	~Sword();
 
-	void Init(void);
-	void Update(void);
+	void Init();
+	void Update();
 	void Draw(void);
 	void Release(void);
 private:

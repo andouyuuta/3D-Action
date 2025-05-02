@@ -1,7 +1,7 @@
 #pragma once
+#include "Enemy.h"
 #include <DxLib.h>
 #include <vector>
-#include "Enemy.h"
 
 class EnemyManager
 {

@@ -7,6 +7,8 @@ class Player;
 class Sword;
 class Enemy;
 class EnemyManager;
+class Stage;
+class Collision;
 
 class Game : public SceneBase
 {
@@ -36,6 +38,11 @@ private:
 	Sword* sword_;
 
 	//敵
-	Enemy* enemy_;
 	EnemyManager* enemymng_;
+
+	//ステージ
+	Stage* stage_;
+
+	//当たり判定
+	Collision* collision_;
 };

@@ -44,7 +44,7 @@ void Camera::GameUpdate(void)
 
 	// ƒJƒƒ‰‚ÌÝ’è(ˆÊ’u‚ÆŠp“x‚É‚æ‚é§Œä)
 	VECTOR UP_VECTOR = { 0.0f, 1.0f, 0.0f };
-	VECTOR followPos = followPlayer_->GetPlayerPos();
+	VECTOR followPos = Player::GetInstance().GetPlayerPos();
 	VECTOR Localpos_ = VAdd(followPos, localPosFormPlayer_);
 	SetCameraPositionAndTargetAndUpVec(
 		Localpos_,

@@ -2,6 +2,9 @@
 #include <DxLib.h>
 #include <vector>
 
+class Sword;
+class Enemy;
+
 class Player
 {
 public:
@@ -46,6 +49,9 @@ public:
 	static constexpr int Attack_4 = 18;					//攻撃４
 	static constexpr int Death = 19;					//死亡
 
+	// プレイヤーの最大HP
+	static constexpr int PLAYER_MAX_HP = 10;
+
 	// プレイヤーの情報の構造体
 	struct Info
 	{
@@ -57,6 +63,7 @@ public:
 		float moveSpeed_;		// 移動スピード
 		int moveDir_;			// 移動方向
 		int moveKind_;			// プレイヤーの移動状態
+		int hp_;				// HP
 
 		// 移動ベクトル
 		VECTOR moveVec_;		// 移動ベクトル
@@ -83,14 +90,22 @@ public:
 		float currentratio_;	//現在のアニメーションの再生時間(割合)
 		float remainingtime_;	//アニメーションがあとどれくらいで終わるか
 
+		bool aliveFlg;			//死亡したかどうか
+
 	};
+
+	// インスタンスの生成
+	static void CreateInstance(void);
+
+	// インスタンスの取得
+	static Player& GetInstance(void);
+
 
 	Player(void);		// コンストラクタ
 	~Player(void);		// デストラクタ
 
-	void SystemInit(void);	// 初期化
-	void GameInit(void);
-	void Update(void);	// 更新
+	void Init(void);	// 初期化
+	void Update(const std::vector<Enemy*>& enemies);	// 更新
 	void UpdateMove(void);
 	void Draw(void);	// 描画
 	void Release(void); // 解放
@@ -100,11 +115,49 @@ public:
 
 	void SetRotation(void);
 
-	[[nodiscard]] VECTOR GetPlayerPos(void) { return list.pos_; }
+	// ゲッター関数
+	struct Info GetInfo(void) { return list; }
 
+	// プレイヤーのHPを減らす
+	void SetPlayerSpeed(const VECTOR& speed) { list.moveVec_ = speed; }	// 速度設定
+
+	// プレイヤーの攻撃が敵に当たった場合のHP処理
+	void AttackEnemies(const std::vector<Enemy*>& enemies);
+
+	// 当たり判定
+	void CheckEnemyCollision(const std::vector<Enemy*>& enemies);
+
+	void ChangeAnimation(int idx, bool lock = false);	//アニメーション切り替え
+
+	
+
+	[[nodiscard]] int GetPlayerModel(void) { return list.modelid_; }
+	[[nodiscard]] VECTOR GetPlayerPos(void) { return list.pos_; }
+	[[nodiscard]] VECTOR GetPlayerRot(void) { return list.rot_; }
+	[[nodiscard]] bool GetWeaposFlag(void) { return list.weaponflg_; }
+	[[nodiscard]] bool GetIsDeadFlag(void) { return list.isdead_; }
+	[[nodiscard]] int GetRightHandIndex(void) { return MV1SearchFrame(list.modelid_, "mixamorig:RightHand"); }
+	[[nodiscard]] VECTOR GetRightHandPosition(void) { return MV1GetFramePosition(list.modelid_, GetRightHandIndex()); }
+	[[nodiscard]] int GetDamageCooldown(void) { return damageCooldown_; }
+	[[nodiscard]] int GetHp(void) { return list.hp_; }
+	[[nodiscard]] void SetPlayerPos(VECTOR pos) { list.pos_ = pos; MV1SetPosition(list.modelid_, list.pos_); }
+	[[nodiscard]] void SetDamageCooldown(int damage) { damageCooldown_ = damage; }
+	[[nodiscard]] void SetMoveSpeed(int speed) { list.moveSpeed_ = speed; }
+	[[nodiscard]] void DecreaseCoolDown(int damage) { damageCooldown_ += damage; }
+	[[nodiscard]] void SetDecreaseHp(int hp) { list.hp_ -= hp; }
+	[[nodiscard]] void SetIsDead(bool dead) { list.isdead_ = dead; }
 private:
+
+	// 敵
+	Enemy* enemy_;
+
+	// 静的インスタンス
+	static Player* instance_;
+
 	// 構造体を格納する変数
 	struct Info list;
+
+	int damageCooldown_; // ダメージ間隔制御用
 
 	void PlayerMove(int idle, int walk, int run);		//プレイヤーの動き
 	bool CrouchUpdate(void);							//しゃがみ
@@ -112,6 +165,5 @@ private:
 	bool AttackCombo(int nowcombo, int nextanimidx, int nextstep, float reception, float remainingtime);
 	void PlayAnimation(void);							//アニメーション再生
 	void DebugAnimation(void);							//数字キーでアニメーション切り替え
-	void ChangeAnimation(int idx, bool lock = false);	//アニメーション切り替え
 };
 

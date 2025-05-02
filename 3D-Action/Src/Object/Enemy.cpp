@@ -1,4 +1,5 @@
 #include "Enemy.h"
+#include "Player.h"
 #include "../Application.h"
 #include "../Manager/InputManager.h"
 
@@ -36,7 +37,7 @@ Enemy::Enemy(void)
 
 	list.moveVec_ = VGet(0.0f, 0.0f, 0.0f);
 	list.oldMoveVec_ = VGet(0.0f, 0.0f, 0.0f);
-	list.moveVEcRad_ = VGet(0.0f, 0.0f, 0.0f);
+	list.moveVecRad_ = VGet(0.0f, 0.0f, 0.0f);
 	list.localRot_ = INIT_MODEL_ROT_OFFSET;
 
 	list.animindex_ = 0;
@@ -83,8 +84,9 @@ void Enemy::Init(int org)
 }
 
 // 更新
-void Enemy::Update(void)
+void Enemy::Update()
 {
+	//UpdateMove();
 	PlayAnimation();
 	DebugAnimation();
 }
@@ -99,6 +101,47 @@ void Enemy::Draw(void)
 void Enemy::Release(void)
 {
 	MV1DeleteModel(list.modelid_);
+}
+
+// 追跡処理
+void Enemy::UpdateMove(void)
+{
+	// 攻撃中は移動しない
+	if (list.animlockflg_)return;
+
+	// プレイヤーとのXZ距離を計算
+	VECTOR toPlayer = VSub(Player::GetInstance().GetPlayerPos(), list.pos_);
+	toPlayer.y = 0.0f;
+	float dist = VSize(toPlayer);
+
+	const float ATTACK_RANGE = 50.0f;
+
+	if (dist < ATTACK_RANGE)
+	{
+		// 攻撃距離に入ったら攻撃アニメーション
+		if (list.animindex_ != 3)		// 攻撃アニメーションでなければ
+		{
+			ChangeAnimation(3);			// 攻撃アニメーション
+			list.animlockflg_ = true;	// 攻撃が終わるまでロック
+		}
+		// ダメージ処理(できるなら1回だけ当てれるようにする)
+		return;
+	}
+
+	// プレイヤー追跡
+	VECTOR dir = VNorm(toPlayer); // 向きの正規化
+	list.moveVec_ = VScale(dir, MOVE_SPEED_WALK);	// 移動ベクトルをスピード付きで設定
+	list.pos_ = VAdd(list.pos_, list.moveVec_);		// 座標の更新
+
+	// 回転もプレイヤー方向に向ける
+	list.moveVecRad_.y = atan2f(dir.x, dir.z);
+	list.rot_.y = list.moveVecRad_.y;
+
+	// モデル更新
+	MV1SetPosition(list.modelid_, list.pos_);
+
+	// 歩きアニメーションに変更
+	if (!list.animlockflg_)ChangeAnimation(1);
 }
 
 // 死亡フラグ
@@ -137,106 +180,6 @@ void Enemy::SetDamage(int dp)
 		// 死んだフラグ
 		list.deadflg_ = true;
 	}
-}
-
-//移動
-void Enemy::UpdateMove(void)
-{
-	//// 入力制御取得
-	//InputManager& ins = InputManager::GetInstance();
-
-	//if (list.animlockflg_)
-	//{
-	//	return;
-	//}
-
-	////死亡時にも移動させない
-	//if (list.deadflg_)
-	//{
-	//	list.moveSpeed_ = MOVE_SPEED_STOP;
-	//	ChangeAnimation(19);
-	//	return;
-	//}
-
-	//// WASDでプレイヤー移動
-	//list.moveVec_ = { 0.0f, 0.0f, 0.0f };
-
-	//// 左・右・手前・奥のベクトルを作成する
-	//VECTOR RIGHT_MOVE_VEC = { 1.0f,  0.0f,  0.0f };
-	//VECTOR LEFT_MOVE_VEC = { -1.0f,  0.0f,  0.0f };
-	//VECTOR FRONT_MOVE_VEC = { 0.0f,  0.0f,  1.0f };
-	//VECTOR BACK_MOVE_VEC = { 0.0f,  0.0f, -1.0f };
-
-	//// 入力方向に移動ベクトルを追加する
-	//if (ins.IsNew(KEY_INPUT_UP)) { list.moveVec_ = VAdd(list.moveVec_, FRONT_MOVE_VEC); }
-	//if (ins.IsNew(KEY_INPUT_LEFT)) { list.moveVec_ = VAdd(list.moveVec_, LEFT_MOVE_VEC); }
-	//if (ins.IsNew(KEY_INPUT_DOWN)) { list.moveVec_ = VAdd(list.moveVec_, BACK_MOVE_VEC); }
-	//if (ins.IsNew(KEY_INPUT_RIGHT)) { list.moveVec_ = VAdd(list.moveVec_, RIGHT_MOVE_VEC); }
-
-
-
-	//// ベクトルの移動が行われていたら座標更新
-	//if (IsMove(list.moveVec_))
-	//{
-	//	// 移動状態の設定
-	//	list.moveKind_ = 1;
-
-	//	//// カメラ角度分設定する
-	//	//VECTOR cameraAngles = SceneManager::GetInstance().GetCamera()->GetCameraAngles();
-	//	//MATRIX cameraMatY = MGetRotY(cameraAngles.y);
-	//	//list.moveVec_ = VTransform(list.moveVec_, cameraMatY);
-
-	//	// スタミナが切れているかどうか
-	//	bool spFlg_ = false;
-
-	//	if (spFlg_)
-	//	{
-	//		// スタミナない状態
-	//		list.moveSpeed_ = MOVE_SPEED_STOP;
-	//	}
-	//	else
-	//	{
-	//		if (ins.IsNew(KEY_INPUT_LSHIFT))
-	//		{
-	//			// ダッシュ状態
-	//			list.moveSpeed_ = MOVE_SPEED_RUN;
-	//			ChangeAnimation(2);
-	//		}
-	//		else
-	//		{
-	//			// 歩き状態
-	//			list.moveSpeed_ = MOVE_SPEED_WALK;
-	//			ChangeAnimation(1);
-	//		}
-	//	}
-
-	//	// 座標更新
-	//	list.moveVec_ = VNorm(list.moveVec_);
-	//	list.moveVec_ = VScale(list.moveVec_, list.moveSpeed_);
-	//	list.pos_ = VAdd(list.pos_, list.moveVec_);
-	//	list.oldMoveVec_ = list.moveVec_;
-
-	//	// 方向を角度に変換する( XZ平面 Y軸)
-	//	list.moveVecRad_.y = atan2f(list.moveVec_.x, list.moveVec_.z);
-
-	//	// シンプルに計算角度を設定してみる
-	//	list.rot_.y = list.moveVecRad_.y;
-
-	//	// 座標設定
-	//	MV1SetPosition(list.modelid_, list.pos_);
-	//}
-	//else
-	//{
-	//	// 移動状態の設定
-	//	list.moveKind_ = 0;
-
-	//	//アニメーションロックされていないとき待機
-	//	if (!list.animlockflg_)
-	//	{
-	//		ChangeAnimation(0);
-	//	}
-	//}
-
 }
 
 //アニメーション再生

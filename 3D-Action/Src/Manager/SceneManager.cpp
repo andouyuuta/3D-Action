@@ -53,7 +53,7 @@ void SceneManager::Init(void)
 void SceneManager::Init3D(void)
 {
 	//背景色設定
-	SetBackgroundColor(105, 20, 100);
+	SetBackgroundColor(60,80,60);
 
 	// Zバッファを有効にする
 	SetUseZBuffer3D(true);
@@ -67,15 +67,11 @@ void SceneManager::Init3D(void)
 	//ライトを有効にする
 	SetUseLighting(true);
 
-	//正面から斜めに下に向かったライト
-	ChangeLightTypeDir({ 0.00f,-1.00f,1.00f });
+	// ライトをやや斜めに
+	ChangeLightTypeDir({ 0.3f, -0.7f, 0.5f });
 
-	// できるだけ穏やかに光らせる
-	SetUseSpecular(false);  // ハイライトを完全オフ
-
-	//SetLightAmbColor(GetColorF(0.5f, 0.5f, 0.5f, 1.0f)); // 環境光
-	//SetLightDifColor(GetColorF(0.3f, 0.3f, 0.3f, 1.0f)); // 拡散光
-	SetLightSpcColor(GetColorF(0.0f, 0.0f, 0.0f, 0.5f)); // スペキュラ光をゼロに
+	// 環境光を追加して陰影をなめらかに
+	SetLightAmbColor(GetColorF(100.0f, 100.0f, 100.0f,1.0f));
 }
 
 void SceneManager::Update(void)

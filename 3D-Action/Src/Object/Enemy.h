@@ -50,7 +50,7 @@ public:
 		// 移動ベクトル
 		VECTOR moveVec_;		//移動ベクトル
 		VECTOR oldMoveVec_;		//直前の移動ベクトル
-		VECTOR moveVEcRad_;		//移動ベクトルが生成する角度
+		VECTOR moveVecRad_;		//移動ベクトルが生成する角度
 
 		VECTOR localRot_;		//調整用初期角度
 
@@ -68,9 +68,12 @@ public:
 	~Enemy(void);		// デストラクタ
 
 	void Init(int org);	// 初期化
-	void Update(void);	// 更新
+	void Update();	// 更新
 	void Draw(void);	// 描画
 	void Release(void); // 解放
+
+	// 追跡処理
+	void UpdateMove(void);
 
 	// 死亡フラグ
 	bool IsDead()const;
@@ -98,8 +101,6 @@ private:
 	// 構造体を格納する変数
 	struct Info list;
 
-
-	void UpdateMove(void);			//移動
 	void PlayAnimation(void);		//アニメーション再生
 	void DebugAnimation(void);		//数字キーでアニメーション切り替え
 	void ChangeAnimation(int idx);	//アニメーション切り替え
