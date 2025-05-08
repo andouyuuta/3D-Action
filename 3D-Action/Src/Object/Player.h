@@ -20,13 +20,14 @@ public:
 	static constexpr VECTOR INIT_DIR = { 0.0f,0.0f,-1.0f };
 
 	// 視野角
-	static constexpr float VIEW_ANGLE = 30.0f;
+	static constexpr float VIEW_ANGLE = 180.0f;
 
 	// アニメションの再生速度
 	static constexpr float ANIM_SPEED = 0.5f;			//生きている時
 	static constexpr float CROUCH_ANIM_SPEED = 1.5f;	//しゃがんでいるとき
 	static constexpr float CROUCH_ATTACK_SPEED = 1.0f;	//しゃがみ攻撃
 	static constexpr float DEAD_ANIM_SPEED = 0.2f;		//死んでいる時
+	static constexpr float ATTACK_ANIM_SPEED = 0.75f;	//攻撃している
 
 	static constexpr int NoWeaponIdle = 0;				//武器なし待機
 	static constexpr int NoWeaponWalk = 1;				//武器なし歩き
@@ -90,7 +91,7 @@ public:
 		float currentratio_;	//現在のアニメーションの再生時間(割合)
 		float remainingtime_;	//アニメーションがあとどれくらいで終わるか
 
-		bool aliveFlg;			//死亡したかどうか
+		bool deadFlg;			//死亡したかどうか
 
 	};
 
@@ -129,22 +130,23 @@ public:
 
 	void ChangeAnimation(int idx, bool lock = false);	//アニメーション切り替え
 
-	
-
 	[[nodiscard]] int GetPlayerModel(void) { return list.modelid_; }
 	[[nodiscard]] VECTOR GetPlayerPos(void) { return list.pos_; }
 	[[nodiscard]] VECTOR GetPlayerRot(void) { return list.rot_; }
+	[[nodiscard]] float GetRotX(void) { return list.rot_.x; }
+	[[nodiscard]] float GetRotY(void) { return list.rot_.y; }
 	[[nodiscard]] bool GetWeaposFlag(void) { return list.weaponflg_; }
 	[[nodiscard]] bool GetIsDeadFlag(void) { return list.isdead_; }
 	[[nodiscard]] int GetRightHandIndex(void) { return MV1SearchFrame(list.modelid_, "mixamorig:RightHand"); }
 	[[nodiscard]] VECTOR GetRightHandPosition(void) { return MV1GetFramePosition(list.modelid_, GetRightHandIndex()); }
 	[[nodiscard]] int GetDamageCooldown(void) { return damageCooldown_; }
 	[[nodiscard]] int GetHp(void) { return list.hp_; }
+	[[nodiscard]] bool GetAttackFlag(void){return list.attackflg_;}
 	[[nodiscard]] void SetPlayerPos(VECTOR pos) { list.pos_ = pos; MV1SetPosition(list.modelid_, list.pos_); }
 	[[nodiscard]] void SetDamageCooldown(int damage) { damageCooldown_ = damage; }
 	[[nodiscard]] void SetMoveSpeed(int speed) { list.moveSpeed_ = speed; }
 	[[nodiscard]] void DecreaseCoolDown(int damage) { damageCooldown_ += damage; }
-	[[nodiscard]] void SetDecreaseHp(int hp) { list.hp_ -= hp; }
+	[[nodiscard]] void SetDamage(int hp);
 	[[nodiscard]] void SetIsDead(bool dead) { list.isdead_ = dead; }
 private:
 

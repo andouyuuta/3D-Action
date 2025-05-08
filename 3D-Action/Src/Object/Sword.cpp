@@ -1,6 +1,22 @@
 #include "Sword.h"
 #include "Player.h"
 
+Sword* Sword::instance_ = nullptr;
+
+void Sword::CreateInstance()
+{
+	if (instance_ == nullptr)
+	{
+		instance_ = new Sword();
+	}
+	/*instance_->Init();*/
+}
+
+Sword& Sword::GetInstance(void)
+{
+	return *instance_;
+}
+
 Sword::Sword()
 {
 	list.model_ = -1;
@@ -26,6 +42,8 @@ void Sword::Init()
 	MV1SetPosition(list.model_, list.pos_);
 	MV1SetRotationXYZ(list.model_, list.rot_);
 	MV1SetScale(list.model_, list.scale_);
+
+	MV1SetupCollInfo(list.model_);
 }
 
 void Sword::Update()

@@ -24,11 +24,12 @@ public:
 	static constexpr float DEAD_ANIM_SPEED = 0.2f;	// 死んでいる時
 
 	// 敵の移動状態管理用
-	enum class MODE_ID
-	{
-		NONE,
-		WALK,		// 歩き
-		RUN,		// 走る
+	enum EnemyAnim {
+		ANIM_IDLE = 0,
+		ANIM_WALK,
+		ANIM_RUN,
+		ANIM_ATTACK,
+		ANIM_DEAD
 	};
 
 	// 敵の最大HP
@@ -62,6 +63,9 @@ public:
 		bool animlockflg_;		//アニメーションロック
 
 		bool deadflg_;			//死んでいるか
+		bool drawflg_;			//表示するか
+		bool isHitboxActive_;	// 当たり判定が有効しているか
+		bool hasHitPlayer_;		// 攻撃一回で一度しかヒットしないようにするフラグ
 	};
 
 	Enemy(void);		// コンストラクタ
@@ -85,18 +89,14 @@ public:
 	struct Info GetInfo(void) { return list; }
 
 	// 敵の現在位置の取得する（外部から読み取り専用）
-	VECTOR GetPosition()const;
-	int	   GetHP()const;
+	[[nodiscard]] int GetModel()const { return list.modelid_; }
+	[[nodiscard]] VECTOR GetPosition()const { return list.pos_; }
+	[[nodiscard]] int	   GetHP()const { list.hp_; }
+	[[nodiscard]] int GetRightHandIndex(void) { return MV1SearchFrame(list.modelid_, "mixamorig:RightHand"); }
+	[[nodiscard]] VECTOR GetRightHandPosition(void) { return MV1GetFramePosition(list.modelid_, GetRightHandIndex()); }
 
 	// 敵のHPを減らす
 	void SetDamage(int dp);
-
-	// デバックの描画
-	void DrawDebug(void);
-
-	// ベクトルの移動判定
-	bool IsMove();
-
 private:
 	// 構造体を格納する変数
 	struct Info list;

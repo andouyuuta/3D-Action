@@ -47,6 +47,7 @@ Enemy::Enemy(void)
 	list.animlockflg_ = false;
 
 	list.deadflg_ = false;
+	list.drawflg_ = true;
 }
 
 Enemy::~Enemy(void)
@@ -71,7 +72,6 @@ void Enemy::Init(int org)
 	// 敵のHPの初期化
 	list.hp_ = ENEMY_MAX_HP;
 
-
 	//アニメーション関連
 	list.animindex_ = 0;
 	list.animAttachNo_ = MV1AttachAnim(list.modelid_, list.animindex_);
@@ -81,6 +81,9 @@ void Enemy::Init(int org)
 	MV1SetAttachAnimTime(list.modelid_, list.animAttachNo_, list.currentAnimTime_);
 
 	list.deadflg_ = false;
+
+	list.isHitboxActive_ = false;
+	list.hasHitPlayer_ = false;
 }
 
 // 更新
@@ -94,7 +97,9 @@ void Enemy::Update()
 // 描画
 void Enemy::Draw(void)
 {
-	MV1DrawModel(list.modelid_);
+	if (!list.deadflg_) {
+		MV1DrawModel(list.modelid_);
+	}
 }
 
 // 解放
@@ -119,7 +124,7 @@ void Enemy::UpdateMove(void)
 	if (dist < ATTACK_RANGE)
 	{
 		// 攻撃距離に入ったら攻撃アニメーション
-		if (list.animindex_ != 3)		// 攻撃アニメーションでなければ
+		if (list.animindex_ != EnemyAnim::ANIM_ATTACK)		// 攻撃アニメーションでなければ
 		{
 			ChangeAnimation(3);			// 攻撃アニメーション
 			list.animlockflg_ = true;	// 攻撃が終わるまでロック
@@ -156,19 +161,6 @@ void Enemy::SetEnemyPos(const VECTOR& pos)
 	MV1SetPosition(list.modelid_, list.pos_);
 }
 
-
-// 敵の現在位置の取得する（外部から読み取り専用）
-VECTOR Enemy::GetPosition() const
-{
-	return list.pos_;
-}
-
-// 敵のHPの取得
-int Enemy::GetHP() const
-{
-	return list.hp_;
-}
-
 // 敵のHPを減らす
 void Enemy::SetDamage(int dp)
 {
@@ -189,7 +181,7 @@ void Enemy::PlayAnimation(void)
 
 	switch (list.animindex_)
 	{
-		//ループさせる
+	//ループさせる
 	case 0:			//待機
 	case 1:			//歩く
 	case 2:			//走る
@@ -199,13 +191,14 @@ void Enemy::PlayAnimation(void)
 			list.currentAnimTime_ = 0.0f;
 		}
 		break;
-		//ループさせない
+	//ループさせない
 	case 3:			//攻撃
 		list.currentAnimTime_ += ANIM_SPEED;
 		if (list.currentAnimTime_ >= list.animTotalTime_)
 		{
 			list.currentAnimTime_ = list.animTotalTime_;
 			list.animlockflg_ = false;
+
 		}
 		break;
 	case 4:			//死亡

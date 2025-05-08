@@ -49,8 +49,8 @@ void Game::Init(void)
 	Player::GetInstance().Init();
 
 	//剣初期化
-	sword_ = new Sword();
-	sword_->Init();
+	Sword::CreateInstance();
+	Sword::GetInstance().Init();
 
 	enemymng_ = new EnemyManager();
 	enemymng_->Init();
@@ -88,7 +88,7 @@ void Game::Update(void)
 	Player::GetInstance().Update(enemymng_->GetEnemies());
 
 	//剣更新
-	sword_->Update();
+	Sword::GetInstance().Update();
 
 	//当たり判定
 	collision_->Update(enemymng_->GetEnemies());
@@ -119,7 +119,7 @@ void Game::Draw(void)
 	// プレイヤー描画
 	Player::GetInstance().Draw();
 	//剣描画
-	sword_->Draw();
+	Sword::GetInstance().Draw();
 
 	enemymng_->Draw();
 
@@ -147,8 +147,7 @@ void Game::Release(void)
 	delete camera_;
 
 	//剣の解放
-	sword_->Release();
-	delete sword_;
+	Sword::GetInstance().Release();
 
 	// プレイヤーの解放
 	Player::GetInstance().Release();

@@ -16,7 +16,7 @@ void Player::CreateInstance()
 	{
 		instance_ = new Player();
 	}
-	instance_->Init();
+	/*instance_->Init();*/
 }
 
 Player& Player::GetInstance(void)
@@ -110,6 +110,8 @@ void Player::Init(void)
 	// HPの初期化
 	list.hp_ = PLAYER_MAX_HP;
 
+	list.deadFlg = false;
+
 	// ダメージ間隔制御用
 	damageCooldown_ = 0;
 
@@ -143,7 +145,7 @@ void Player::UpdateMove(void)
 	// 入力制御取得
 	InputManager& ins = InputManager::GetInstance();
 
-	//死亡時にも移動させない
+	//死亡時に移動させない
 	if (list.isdead_)
 	{
 		list.moveSpeed_ = MOVE_SPEED_STOP;
@@ -232,54 +234,6 @@ void Player::SetRotation(void)
 
 	// 行列を使用してモデルの角度を設定
 	MV1SetRotationMatrix(list.modelid_, mat);
-}
-
-// 当たり判定
-void Player::CheckEnemyCollision(const std::vector<Enemy*>& enemies)
-{
-	const float COLLISION_RADIUS = 50.0f;  // 判定範囲半径
-
-	for (auto& enemy : enemies)
-	{
-		// 死亡済みの敵は無視
-		if (enemy->IsDead()) continue;
-
-		VECTOR distVec = VSub(list.pos_, enemy->GetPosition());
-		// XZ平面のみ
-		distVec.y = 0.0f;
-
-		if (VSize(distVec) < COLLISION_RADIUS)
-		{
-			// プレイヤーを押し戻す
-			VECTOR pushDir = VNorm(distVec);
-			VECTOR pushBack = VScale(pushDir, COLLISION_RADIUS - VSize(distVec) + 0.1f);
-			list.pos_ = VAdd(list.pos_, pushBack);
-			MV1SetPosition(list.modelid_, list.pos_);
-			list.moveSpeed_ = MOVE_SPEED_STOP;
-
-			// 待機アニメーションに変更
-			ChangeAnimation(0);
-
-			if (damageCooldown_ <= 0)
-			{
-				// HPの減少
-				list.hp_ -= 10;
-				//クールタイム(60フレームに一回)
-				damageCooldown_ = 60;
-
-				// HPが0以下かつ死亡していなければ死亡処理
-				if (list.hp_ <= 0 && !list.isdead_)
-				{
-					list.isdead_ = true;
-					// 死亡アニメーション
-					ChangeAnimation(19, true);
-					SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::GAMEOVER);
-				}
-			}
-		}
-	}
-
-	if (damageCooldown_ > 0) damageCooldown_--;
 }
 
 bool Player::CrouchUpdate(void)
@@ -378,6 +332,18 @@ bool Player::AttackCombo(int nowcombo, int nextanimidx, int nextstep, float rece
 		}
 	}
 	return false;
+}
+
+void Player::SetDamage(int hp)
+{
+	list.hp_ -= hp;
+	// HPが0以下なら死亡状態へ移行
+	if (list.hp_ <= 0)
+	{
+		list.hp_ = 0;
+		// 死んだフラグ
+		list.isdead_ = true;
+	}
 }
 
 void Player::PlayerMove(int idle, int walk, int run)
@@ -510,7 +476,7 @@ void Player::PlayAnimation(void)
 	case 16:		//攻撃２
 	case 17:		//攻撃３
 	case 18:		//攻撃４
-		list.currentAnimTime_ += ANIM_SPEED;
+		list.currentAnimTime_ += ATTACK_ANIM_SPEED;
 		if (list.currentAnimTime_ >= list.animTotalTime_)
 		{
 			list.currentAnimTime_ = list.animTotalTime_;
@@ -523,6 +489,11 @@ void Player::PlayAnimation(void)
 		{
 			list.currentAnimTime_ = list.animTotalTime_;
 			list.animlockflg_ = false;
+			if (!list.deadFlg)
+			{
+				list.deadFlg = true;
+				SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::GAMEOVER);
+			}
 		}
 		break;
 	case 10:		//しゃがみ(防御)

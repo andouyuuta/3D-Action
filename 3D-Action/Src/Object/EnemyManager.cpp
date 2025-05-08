@@ -40,11 +40,19 @@ void EnemyManager::Init(void)
 void EnemyManager::Update()
 {
 	//•¡”‚Ì“G‚ÌXV
-	for (Enemy* enemy : enemyies_)
+	for (auto it = enemyies_.begin(); it != enemyies_.end(); )
 	{
-		if (enemy != nullptr)
+		Enemy* enemy = *it;
+		if (enemy->IsDead())
+		{
+			enemy->Release();
+			delete enemy;
+			it = enemyies_.erase(it);
+		}
+		else
 		{
 			enemy->Update();
+			++it;
 		}
 	}
 }
