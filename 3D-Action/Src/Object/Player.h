@@ -135,7 +135,7 @@ public:
 	[[nodiscard]] VECTOR GetPlayerRot(void) { return list.rot_; }
 	[[nodiscard]] float GetRotX(void) { return list.rot_.x; }
 	[[nodiscard]] float GetRotY(void) { return list.rot_.y; }
-	[[nodiscard]] bool GetWeaposFlag(void) { return list.weaponflg_; }
+	[[nodiscard]] bool GetWeaponFlag(void) { return list.weaponflg_; }
 	[[nodiscard]] bool GetIsDeadFlag(void) { return list.isdead_; }
 	[[nodiscard]] int GetRightHandIndex(void) { return MV1SearchFrame(list.modelid_, "mixamorig:RightHand"); }
 	[[nodiscard]] VECTOR GetRightHandPosition(void) { return MV1GetFramePosition(list.modelid_, GetRightHandIndex()); }

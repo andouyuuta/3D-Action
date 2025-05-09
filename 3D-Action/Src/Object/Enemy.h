@@ -66,6 +66,7 @@ public:
 		bool drawflg_;			//表示するか
 		bool isHitboxActive_;	// 当たり判定が有効しているか
 		bool hasHitPlayer_;		// 攻撃一回で一度しかヒットしないようにするフラグ
+		bool attackflg_;		// 攻撃しているか
 	};
 
 	Enemy(void);		// コンストラクタ
@@ -91,10 +92,11 @@ public:
 	// 敵の現在位置の取得する（外部から読み取り専用）
 	[[nodiscard]] int GetModel()const { return list.modelid_; }
 	[[nodiscard]] VECTOR GetPosition()const { return list.pos_; }
-	[[nodiscard]] int	   GetHP()const { list.hp_; }
+	[[nodiscard]] float GetRotY()const { return list.rot_.y; }
+	[[nodiscard]] int GetHP()const { list.hp_; }
 	[[nodiscard]] int GetRightHandIndex(void) { return MV1SearchFrame(list.modelid_, "mixamorig:RightHand"); }
 	[[nodiscard]] VECTOR GetRightHandPosition(void) { return MV1GetFramePosition(list.modelid_, GetRightHandIndex()); }
-
+	[[nodiscard]] bool GetAttackFlg(void) { return list.attackflg_; }
 	// 敵のHPを減らす
 	void SetDamage(int dp);
 private:
@@ -103,6 +105,6 @@ private:
 
 	void PlayAnimation(void);		//アニメーション再生
 	void DebugAnimation(void);		//数字キーでアニメーション切り替え
-	void ChangeAnimation(int idx);	//アニメーション切り替え
+	void ChangeAnimation(int idx, bool lock = false);	//アニメーション切り替え
 };
 

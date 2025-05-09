@@ -17,10 +17,12 @@ public:
 	// プレイヤー側で敵のリストを取得するための関数
 	const std::vector<Enemy*>& GetEnemies() const;
 
+	[[nodiscard]] int GetEnemyCount(void) { return ENEMY_COUNT; }
+	[[nodiscard]] int GetAliveEnemyCount()const;
 private:
 	std::vector<Enemy*> enemyies_;			// 敵のリスト
 	int enemymodel_;
 	int bossenemymodel_;
 
-	static constexpr int ENEMY_COUNT = 10;	// 敵の数
+	int ENEMY_COUNT = 10;	// 敵の数
 };

@@ -48,6 +48,7 @@ Enemy::Enemy(void)
 
 	list.deadflg_ = false;
 	list.drawflg_ = true;
+	list.attackflg_ = false;
 }
 
 Enemy::~Enemy(void)
@@ -100,6 +101,17 @@ void Enemy::Draw(void)
 	if (!list.deadflg_) {
 		MV1DrawModel(list.modelid_);
 	}
+
+	VECTOR righthandpos = GetRightHandPosition();
+	float angleY = GetRotY();  // プレイヤーのY軸回転
+	float attackradius = 20.0f;
+
+	// プレイヤーのY軸回転（前後）に加えて、X軸回転（上下）で斜め上にオフセット
+	VECTOR forward = VGet(sinf(angleY), 0.0f, cosf(angleY));
+
+	VECTOR attackCenter = VAdd(righthandpos, forward);
+
+	DrawSphere3D(attackCenter, attackradius, 32, 0xffffff, 0xffffff, false);
 }
 
 // 解放
@@ -126,8 +138,8 @@ void Enemy::UpdateMove(void)
 		// 攻撃距離に入ったら攻撃アニメーション
 		if (list.animindex_ != EnemyAnim::ANIM_ATTACK)		// 攻撃アニメーションでなければ
 		{
-			ChangeAnimation(3);			// 攻撃アニメーション
-			list.animlockflg_ = true;	// 攻撃が終わるまでロック
+			list.attackflg_ = true;
+			ChangeAnimation(3,true);	// 攻撃アニメーション
 		}
 		// ダメージ処理(できるなら1回だけ当てれるようにする)
 		return;
@@ -238,7 +250,7 @@ void Enemy::DebugAnimation(void)
 }
 
 //アニメーション切り替え
-void Enemy::ChangeAnimation(int idx)
+void Enemy::ChangeAnimation(int idx, bool lock)
 {
 	if (list.animindex_ != idx) {
 		MV1DetachAnim(list.modelid_, list.animAttachNo_);
@@ -247,5 +259,7 @@ void Enemy::ChangeAnimation(int idx)
 		list.animTotalTime_ = MV1GetAttachAnimTotalTime(list.modelid_, list.animAttachNo_);
 		list.currentAnimTime_ = 0.0f;
 		MV1SetAttachAnimTime(list.modelid_, list.animAttachNo_, list.currentAnimTime_);
+		//ロック指定されたらフラグON
+		list.animlockflg_ = lock;
 	}
 }

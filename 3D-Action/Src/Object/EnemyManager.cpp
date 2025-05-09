@@ -106,3 +106,16 @@ const std::vector<Enemy*>& EnemyManager::GetEnemies() const
 {
 	return enemyies_;
 }
+
+int EnemyManager::GetAliveEnemyCount() const
+{
+	int count = 0;
+	for (const auto& enemy : enemyies_)
+	{
+		if (enemy && !enemy->IsDead())
+		{
+			++count;
+		}
+	}
+	return count;
+}

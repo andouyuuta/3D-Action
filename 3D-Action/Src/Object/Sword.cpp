@@ -62,7 +62,7 @@ void Sword::Update()
 
 void Sword::Draw(void)
 {
-	if (Player::GetInstance().GetWeaposFlag()) {
+	if (Player::GetInstance().GetWeaponFlag()) {
 		MV1DrawModel(list.model_);
 	}
 }

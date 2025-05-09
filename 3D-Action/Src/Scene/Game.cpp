@@ -93,6 +93,12 @@ void Game::Update(void)
 	//“–‚½‚è”»’è
 	collision_->Update(enemymng_->GetEnemies());
 
+	//“G‚ª‘Sˆõ“|‚³‚ê‚½‚çƒQ[ƒ€ƒNƒŠƒAƒV[ƒ“‚ÖˆÚ“®
+	if (enemymng_->GetAliveEnemyCount() <= 0)
+	{
+		SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::GAMECLEAR);
+	}
+
 	// ƒV[ƒ“‘JˆÚ
 	InputManager& ins = InputManager::GetInstance();
 	if (ins.IsTrgDown(KEY_INPUT_C))

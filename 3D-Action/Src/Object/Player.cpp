@@ -181,7 +181,7 @@ void Player::Draw(void)
 	// モデルの描画
 	MV1DrawModel(list.modelid_);
 
-	//// プレイヤー座標表示
+	// プレイヤー座標表示
 	//DrawFormatString(20, 120, GetColor(0xff, 0xff, 0xff), "プレイヤーの座標 : (X, Y, Z) = (% 1.2lf, % 1.2lf, % 1.2lf)", list.pos_.x, list.pos_.y, list.pos_.z);
 }
 

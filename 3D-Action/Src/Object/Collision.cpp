@@ -113,27 +113,13 @@ void Collision::PlayerToEnemyCollision(const std::vector<Enemy*>& enemies)
 		{
 			// 押し戻しなどの処理
 			VECTOR pushNormal = result.Dim[0].Normal;
-			VECTOR pushBack = VScale(pushNormal, 10.0f);
+			VECTOR pushBack = VScale(pushNormal, 7.0f);
 			Player::GetInstance().SetPlayerPos(VAdd(playerPos, pushBack));
-			// 移動停止、アニメーション変更
-			//Player::GetInstance().SetMoveSpeed(Player::MOVE_SPEED_STOP);
-			//Player::GetInstance().ChangeAnimation(0);
-
-			// クールダウン中でなければダメージを受ける
-			if (Player::GetInstance().GetDamageCooldown() <= 0)
-			{
-				Player::GetInstance().SetDamage(10);
-				Player::GetInstance().SetDamageCooldown(60);	// 無敵時間の設定
-
-				if (Player::GetInstance().GetHp() <= 0 && !Player::GetInstance().GetIsDeadFlag())
-				{
-					//Player::GetInstance().SetIsDead(true);
-					Player::GetInstance().ChangeAnimation(Player::Death, true);
-					SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::GAMEOVER);
-				}
-			}
 		}
 		MV1CollResultPolyDimTerminate(result);
+		//敵が攻撃したときの当たり判定
+		EnemyAttackCollision(enemies);
+
 	}
 
 	// クールダウンを一秒減少
@@ -142,6 +128,43 @@ void Collision::PlayerToEnemyCollision(const std::vector<Enemy*>& enemies)
 		Player::GetInstance().DecreaseCoolDown(1);
 	}
 }
+
+void Collision::EnemyAttackCollision(const std::vector<Enemy*>& enemies)
+{
+	// 敵との当たり判定
+	for (auto& enemy : enemies)
+	{
+		if (enemy->GetAttackFlg())
+		{
+			VECTOR righthandpos = enemy->GetRightHandPosition();
+			float angleY = enemy->GetRotY();  // プレイヤーのY軸回転
+			float attackradius = 20.0f;
+
+			// プレイヤーのY軸回転（前後）に加えて、X軸回転（上下）で斜め上にオフセット
+			VECTOR forward = VGet(sinf(angleY), 0.0f, cosf(angleY));
+
+			VECTOR attackCenter = VAdd(righthandpos, forward);
+
+			auto result = MV1CollCheck_Sphere(Player::GetInstance().GetPlayerModel(), -1, attackCenter, attackradius);
+			if (result.HitNum > 0)
+			{
+				// クールダウン中でなければダメージを受ける
+				if (Player::GetInstance().GetDamageCooldown() <= 0)
+				{
+					Player::GetInstance().SetDamage(10);
+					Player::GetInstance().SetDamageCooldown(60);	// 無敵時間の設定
+
+					if (Player::GetInstance().GetHp() <= 0 && !Player::GetInstance().GetIsDeadFlag())
+					{
+						Player::GetInstance().ChangeAnimation(Player::Death, true);
+						SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::GAMEOVER);
+					}
+				}
+			}
+		}
+	}
+}
+
 
 // 敵同士の当たり判定
 void Collision::EnemyToEnemyCollision(const std::vector<Enemy*> enemies)
@@ -183,40 +206,44 @@ void Collision::EnemyToEnemyCollision(const std::vector<Enemy*> enemies)
 
 void Collision::SwordToEnemyCollision(const std::vector<Enemy*>& enemies)
 {
-	if (!Player::GetInstance().GetAttackFlag()) return;
+	if (Player::GetInstance().GetWeaponFlag() && Player::GetInstance().GetAttackFlag()) {
 
-	// 剣の攻撃判定用の位置と半径
-	VECTOR swordBase = Sword::GetInstance().GetSwordPosition();
-	float swordRadius = 30.0f;
+		// 剣の攻撃判定用の位置と半径
+		VECTOR swordBase = Sword::GetInstance().GetSwordPosition();
+		float swordRadius = 30.0f;
 
-	// プレイヤーの向きに応じて剣の中心へオフセットする
-	float offset = 50.0f;  // 斜め上に移動する距離
-	float angleY = Player::GetInstance().GetRotY();  // プレイヤーのY軸回転
-	float angleX = Player::GetInstance().GetRotX();  // プレイヤーのX軸回転（上下回転）
+		// プレイヤーの向きに応じて剣の中心へオフセットする
+		float offset = 50.0f;  // 斜め上に移動する距離
+		float angleY = Player::GetInstance().GetRotY();  // プレイヤーのY軸回転
+		float angleX = Player::GetInstance().GetRotX();  // プレイヤーのX軸回転（上下回転）
 
-	// プレイヤーのY軸回転（前後）に加えて、X軸回転（上下）で斜め上にオフセット
-	VECTOR forward = VGet(sinf(angleY) * offset, sinf(angleX) * (offset + 30.0f), cosf(angleY) * offset);
+		// プレイヤーのY軸回転（前後）に加えて、X軸回転（上下）で斜め上にオフセット
+		VECTOR forward = VGet(sinf(angleY) * offset, sinf(angleX) * (offset + 30.0f), cosf(angleY) * offset);
 
-	// 剣の中心位置をオフセットで調整
-	VECTOR swordCenter = VAdd(swordBase, forward);
+		// 剣の中心位置をオフセットで調整
+		VECTOR swordCenter = VAdd(swordBase, forward);
 
-	// 敵との当たり判定
-	for (auto& enemy : enemies)
-	{
-		if (!enemy || enemy->IsDead()) continue;
-
-		int enemyModel = enemy->GetModel();
-		auto result = MV1CollCheck_Sphere(enemyModel, -1, swordCenter, swordRadius);
-		if (result.HitNum > 0)
+		// 敵との当たり判定
+		for (auto& enemy : enemies)
 		{
-			enemy->SetDamage(10);
+			if (!enemy || enemy->IsDead()) continue;
+
+			int enemyModel = enemy->GetModel();
+			auto result = MV1CollCheck_Sphere(enemyModel, -1, swordCenter, swordRadius);
+			if (result.HitNum > 0)
+			{
+				enemy->SetDamage(10);
+			}
+			MV1CollResultPolyDimTerminate(result);
 		}
-		MV1CollResultPolyDimTerminate(result);
+
 	}
 }
 
-void Collision::DrawDebag(void)
+
+void Collision::DrawDebag()
 {
+	//プレイヤーの胴体
 	VECTOR playerpos = Player::GetInstance().GetPlayerPos();
 	playerpos.y += 100.0f;
 	DrawSphere3D(playerpos, 20, 32, 0xffffff, 0xffffff, false);
@@ -224,9 +251,7 @@ void Collision::DrawDebag(void)
 	// 剣の攻撃判定用の位置と半径
 	VECTOR swordBase = Sword::GetInstance().GetSwordPosition();
 	float swordRadius = 30.0f;
-
 	VECTOR swordCenter = swordBase;
-
 	// プレイヤーの向きに前方オフセット（XZ平面）
 	float offset = 30.0f;
 	float angleY = Player::GetInstance().GetRotY();

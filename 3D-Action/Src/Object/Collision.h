@@ -26,7 +26,8 @@ private:
 	void PlayerToEnemyCollision(const std::vector<Enemy*>& enemies);
 	void EnemyToEnemyCollision(const std::vector<Enemy*> enemies);
 	void SwordToEnemyCollision(const std::vector <Enemy*>& enemies);
-	void DrawDebag(void);
+	void EnemyAttackCollision(const std::vector < Enemy*>& enemies);
+	void DrawDebag();
 	int stagemodel_;
 };
 
