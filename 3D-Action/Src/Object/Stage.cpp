@@ -9,7 +9,6 @@ void Stage::CreateInstance()
 	{
 		instance_ = new Stage();
 	}
-	instance_->Init();
 }
 
 Stage& Stage::GetInstance(void)
@@ -30,6 +29,7 @@ Stage::~Stage()
 
 }
 
+// ‰Šú‰»
 void Stage::Init(void)
 {
 	list.model_ = MV1LoadModel("Data/Model/BattleDome.mv1");
@@ -45,14 +45,19 @@ void Stage::Init(void)
 	MV1SetupCollInfo(list.model_);
 }
 
+// XVˆ—
 void Stage::Update(void)
 {
 
 }
+
+// •`‰æ
 void Stage::Draw(void)
 {
 	MV1DrawModel(list.model_);
 }
+
+// ‰ğ•ú
 void Stage::Release(void)
 {
 	MV1DeleteModel(list.model_);

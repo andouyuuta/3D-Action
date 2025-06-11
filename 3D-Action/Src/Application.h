@@ -6,8 +6,8 @@ class Application
 {
 public:
 	// スクリーンサイズ
-	static constexpr int SCREEN_SIZE_X = 1000;
-	static constexpr int SCREEN_SIZE_Y = 800;
+	static constexpr int SCREEN_SIZE_X = 1280;
+	static constexpr int SCREEN_SIZE_Y = 720;
 	static constexpr float HALF_SCREEN_SIZE_X = SCREEN_SIZE_X / 2.0f;
 	static constexpr float HALF_SCREEN_SIZE_Y = SCREEN_SIZE_Y / 2.0f;
 
@@ -17,6 +17,7 @@ public:
 	// データパス関連
 	static const std::string PATH_MODEL;
 	static const std::string PATH_IMAGE;
+	static const std::string PATH_AICON;
 	static const std::string PATH_SOUND;
 
 	// 明示的にインスタンスを生成する

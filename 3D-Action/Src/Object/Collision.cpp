@@ -1,263 +1,268 @@
-#include "Collision.h"
-#include "Player.h"
+ï»¿#include "Collision.h"
 #include "Stage.h"
 #include "Enemy.h"
 #include "Sword.h"
-#include "../Manager/SceneManager.h"
+#include "BossEnemy.h"
 
 Collision::Collision()
 {
-	stagemodel_ = -1;
-	enemy_ = nullptr;
+    stageModel_ = -1;
+    attackRadius_ = 0.0f;
+    game_ = nullptr;
 }
+Collision::~Collision() {}
 
-Collision::~Collision()
+void Collision::Init()
 {
-}
-
-void Collision::Init(void)
-{
-	stagemodel_ = Stage::GetInstance().GetStageModel();
+    stageModel_ = Stage::GetInstance().GetStageModel();
 }
 
 void Collision::Update(const std::vector<Enemy*>& enemies)
 {
-	PlayerToStageCollision();			//ƒvƒŒƒCƒ„[‚ÆƒXƒe[ƒW‚Ì“–‚½‚è”»’è
-	EnemyToStageCollision(enemies);		//“G‚ÆƒXƒe[ƒW‚Ì“–‚½‚è”»’è
-	PlayerToEnemyCollision(enemies);	//ƒvƒŒƒCƒ„[‚Æ“G‚Ì“–‚½‚è”»’è
-	EnemyToEnemyCollision(enemies);		//“G‚Æ“G‚Ì“–‚½‚è”»’è
-	SwordToEnemyCollision(enemies);		// Œ•‚Æ“G‚Ì“–‚½‚è”»’è
+    SwordToEnemyCollision(enemies);
+    PlayerToEnemyCollision(enemies);
+    EnemyToEnemyCollision(enemies);
+    PlayerToStageCollision();
+    EnemyToStageCollision(enemies);
 }
 
-void Collision::Draw(void)
+void Collision::Draw(const std::vector<Enemy*>& enemies)
 {
-	DrawDebag();
+    DrawDebag();
+    //for (auto& enemy : enemies)
+    //{
+    //    // æ•µã®å³æ‰‹ã®ä½ç½®ã‚’å–å¾—ã—ã¦çƒä½“ã‚’ã‚»ãƒƒãƒˆ
+    //    VECTOR forward = VNorm(VGet(sinf(enemy->GetRotY()), 0.0f, cosf(enemy->GetRotY())));
+    //    VECTOR attackCenter = VAdd(enemy->GetRightHandPosition(), VScale(forward, 50.0f));
+    //    DrawSphere3D(attackCenter, 20.0f, 32, 0xffffff, 0xffffff, false);
+    //    VECTOR pos = VAdd(enemy->GetPosition(), VGet(0.0f, 100.0f, 0.0f));
+    //    DrawSphere3D(pos, 100.0f, 32, 0xffffff, 0xffffff, false);
+    //}
 }
 
-void Collision::Release(void)
+void Collision::Release() {}
+
+// ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã¨ã‚¹ãƒ†ãƒ¼ã‚¸ã®è¡çª
+void Collision::PlayerToStageCollision()
 {
+    // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®è¡çªä½ç½®(å°‘ã—ä¸Šã«)
+    VECTOR playerpos = VAdd(Player::GetInstance().GetPlayerPos(), VGet(0.0f, 100.0f, 0.0f));
+    auto result = MV1CollCheck_Sphere(stageModel_, -1, playerpos, 50.0f);
+
+    // ãƒ’ãƒƒãƒˆã—ãŸã‚‰æŠ¼ã—æˆ»ã™
+    if (result.HitNum >= 1)
+    {
+        VECTOR pushBack = VScale(result.Dim[0].Normal, 15.0f);
+        Player::GetInstance().SetPlayerPos(VAdd(Player::GetInstance().GetPlayerPos(), pushBack));
+    }
+    MV1CollResultPolyDimTerminate(result);
 }
 
-// ƒvƒŒƒCƒ„[‚ÆƒXƒe[ƒW‚Ì“–‚½‚è”»’è
-void Collision::PlayerToStageCollision(void)
-{
-	// ƒvƒŒƒCƒ„[‚ÌˆÊ’u‚ğæ“¾A’²®
-	VECTOR playerpos = VAdd(Player::GetInstance().GetPlayerPos(), VGet(0.0f, 100.0f, 0.0f));
-
-	// ‹…‘Ì‚ÅƒXƒe[ƒW‚Æ‚Ì“–‚½‚è”»’è‚ğÀs
-	auto playertostage = MV1CollCheck_Sphere(stagemodel_, -1, playerpos, 20);
-	if (playertostage.HitNum >=1)
-	{
-		// Å‰‚É“–‚½‚Á‚½ƒ|ƒŠƒSƒ“‚Ì–@ü‚ğg‚Á‚Ä‰Ÿ‚µ–ß‚·
-		VECTOR pushNormal = playertostage.Dim[0].Normal;
-		VECTOR pushBack = VScale(pushNormal, 10.0f);
-
-		// ƒvƒŒƒCƒ„[‚ÌÀ•W‚ğXV
-		VECTOR newplayerpos = VAdd(Player::GetInstance().GetPlayerPos(), pushBack);
-		Player::GetInstance().SetPlayerPos(newplayerpos);
-	}
-	// Œ‹‰Ê‚Ì‰ğ•ú
-	MV1CollResultPolyDimTerminate(playertostage);
-}
-
-// “G‚ÆƒXƒe[ƒW‚Ì“–‚½‚è”»’è
+// æ•µã¨ã‚¹ãƒ†ãƒ¼ã‚¸ã®è¡çª
 void Collision::EnemyToStageCollision(const std::vector<Enemy*>& enemies)
 {
-	for (auto& enemy : enemies)
-	{
-		// €–SÏ‚İ‚Ì“G‚Í–³‹
-		if (enemy->IsDead())continue;
+    for (auto& enemy : enemies)
+    {
+        if (enemy->IsDead()) continue;
 
-		// ˆÊ’uæ“¾
-		VECTOR enemypos = VAdd(enemy->GetPosition(), VGet(0.0f, 100.0f, 0.0f)); // y²‚ğ’Ç‰Á
-
-		// ‹…‚É‚æ‚é“–‚½‚è”»’è
-		auto enemytostage = MV1CollCheck_Sphere(stagemodel_, -1, enemypos, 20.0f);
-
-		if (enemytostage.HitNum >= 1)
-		{
-			// Å‰‚É“–‚½‚Á‚½ƒ|ƒŠƒSƒ“‚Ì–@ü‚ğg‚Á‚Ä‰Ÿ‚µ–ß‚·
-			VECTOR pushnormal = enemytostage.Dim[0].Normal;
-			VECTOR pushback = VScale(pushnormal, 10.0f);
-
-			VECTOR newenemypos = VAdd(enemy->GetPosition(), pushback);
-			enemy->SetEnemyPos(newenemypos);
-		}
-		// Œ‹‰Ê‚Ì‰ğ•ú
-		MV1CollResultPolyDimTerminate(enemytostage);
-	}
+        //å½“ãŸã‚Šåˆ¤å®š
+        if (!enemy->GetIsBoss())
+        {
+            VECTOR pos = VAdd(enemy->GetPosition(), VGet(0.0f, 100.0f, 0.0f));
+            auto result = MV1CollCheck_Sphere(stageModel_, -1, pos, 20.0f);     //é€šå¸¸æ•µ
+            // ãƒ’ãƒƒãƒˆã—ãŸã‚‰æŠ¼ã—æˆ»ã™
+            if (result.HitNum >= 1)
+            {
+                VECTOR pushBack = VScale(result.Dim[0].Normal, 10.0f);
+                enemy->SetEnemyPos(VAdd(enemy->GetPosition(), pushBack));
+            }
+            MV1CollResultPolyDimTerminate(result);
+        }
+        else
+        {
+            VECTOR pos = VAdd(enemy->GetPosition(), VGet(0.0f, 150.0f, 0.0f));
+            auto result = MV1CollCheck_Sphere(stageModel_, -1, pos, 100.0f);    //ãƒœã‚¹æ•µ
+            // ãƒ’ãƒƒãƒˆã—ãŸã‚‰æŠ¼ã—æˆ»ã™
+            if (result.HitNum >= 1)
+            {
+                VECTOR pushBack = VScale(result.Dim[0].Normal, 10.0f);
+                enemy->SetEnemyPos(VAdd(enemy->GetPosition(), pushBack));
+            }
+            MV1CollResultPolyDimTerminate(result);
+        }
+        
+    }
 }
 
-// ƒvƒŒƒCƒ„[‚Æ“G‚Ì“–‚½‚è”»’è
+//ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã¨æ•µã®è¡çª
 void Collision::PlayerToEnemyCollision(const std::vector<Enemy*>& enemies)
 {
-	const float CHECK_RADIUS = 100.0f;    // ‚´‚Á‚­‚è”»’è—p‚ÌXZ‹——£iL‚ßj
+    // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®ä½ç½®å–å¾—ï¼ˆå½“ãŸã‚Šåˆ¤å®šä½ç½®ã‚’å°‘ã—ä¸Šã«ï¼‰
+    VECTOR checkPos = VAdd(Player::GetInstance().GetPlayerPos(), VGet(0.0f, 100.0f, 0.0f));
 
-	VECTOR playerPos = Player::GetInstance().GetPlayerPos();
-	VECTOR checkPos = VAdd(playerPos,VGet(0.0f,100.0f,0.0f));
+    for (auto& enemy : enemies)
+    {
+        if (!enemy || enemy->IsDead()) continue; // ç„¡åŠ¹ãªæ•µãƒ»æ­»äº¡ã—ãŸæ•µã¯ã‚¹ã‚­ãƒƒãƒ—
 
-	for (auto& enemy : enemies)
-	{
-		if (enemy->IsDead()) continue;
+        // ===== 1. ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã¨æ•µã®ç‰©ç†æŠ¼ã—æˆ»ã—å‡¦ç† =====
+        VECTOR dist = VSub(Player::GetInstance().GetPlayerPos(), enemy->GetPosition());
+        dist.y = 0; // é«˜ã•ç„¡è¦–ã§XZå¹³é¢è·é›¢ã‚’è¦‹ã‚‹
 
-		// XZ‹——£‚¾‚¯‚Åƒ`ƒFƒbƒN
-		VECTOR dist = VSub(playerPos, enemy->GetPosition());
-		dist.y = 0;
-		if (VSize(dist) > CHECK_RADIUS) continue; // ”ÍˆÍŠO‚È‚çƒXƒLƒbƒv
+        if (VSize(dist) <= CHECK_RADIUS)
+        {
+            auto result = MV1CollCheck_Sphere(enemy->GetModel(), -1, checkPos, COLLISION_RADIUS);
 
-		//¸–§‚Èƒ|ƒŠƒSƒ““–‚½‚è”»’è
-		int modelHandle = enemy->GetModel(); // ƒ‚ƒfƒ‹ƒnƒ“ƒhƒ‹æ“¾iEnemy‘¤‚Å—pˆÓj
-		auto result = MV1CollCheck_Sphere(modelHandle, -1, checkPos, COLLISION_RADIUS);
+            if (result.HitNum >= 1)
+            {
+                VECTOR pushBack = VScale(result.Dim[0].Normal, 7.0f); // æŠ¼ã—æˆ»ã—ãƒ™ã‚¯ãƒˆãƒ«
+                Player::GetInstance().SetPlayerPos(VAdd(Player::GetInstance().GetPlayerPos(), pushBack));
+            }
+            MV1CollResultPolyDimTerminate(result);
+        }
 
-		if (result.HitNum >= 1)
-		{
-			// ‰Ÿ‚µ–ß‚µ‚È‚Ç‚Ìˆ—
-			VECTOR pushNormal = result.Dim[0].Normal;
-			VECTOR pushBack = VScale(pushNormal, 7.0f);
-			Player::GetInstance().SetPlayerPos(VAdd(playerPos, pushBack));
-		}
-		MV1CollResultPolyDimTerminate(result);
-		//“G‚ªUŒ‚‚µ‚½‚Æ‚«‚Ì“–‚½‚è”»’è
-		EnemyAttackCollision(enemies);
+        // ===== 2. é€šå¸¸æ”»æ’ƒã®å½“ãŸã‚Šåˆ¤å®šï¼ˆã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ä¸­ã®ã¿ï¼‰ =====
+        if (enemy->GetAttackFlg() && VSize(dist) <= CHECK_RADIUS)
+        {
+            float currentTime_ = enemy->GetInfo().currentAnimTime_;
+            float totalTime_ = enemy->GetInfo().animTotalTime_;
+            float animRatio_ = currentTime_ / totalTime_; // ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³é€²è¡Œåº¦ï¼ˆ0.0ã€œ1.0ï¼‰
 
-	}
+            // æ•µã®ã‚¹ã‚¤ãƒ³ã‚°æ™‚ã«ã®ã¿å½“ãŸã‚Šåˆ¤å®šã‚’ã¤ã‘ã‚‹
+            if (animRatio_ >= 0.3f && animRatio_ <= 0.5f) // æ”»æ’ƒåˆ¤å®šã‚¿ã‚¤ãƒŸãƒ³ã‚°
+            {
+                // æ•µã®å‰æ–¹æ–¹å‘ãƒ™ã‚¯ãƒˆãƒ«
+                VECTOR forward = VNorm(VGet(sinf(enemy->GetRotY()), 0.0f, cosf(enemy->GetRotY())));
+                VECTOR attackCenter = VAdd(enemy->GetRightHandPosition(), VScale(forward, 50.0f));
 
-	// ƒN[ƒ‹ƒ_ƒEƒ“‚ğˆê•bŒ¸­
-	if (Player::GetInstance().GetDamageCooldown() > 0)
-	{
-		Player::GetInstance().DecreaseCoolDown(1);
-	}
+                // ãƒœã‚¹ã®å ´åˆã¯æ”»æ’ƒç¯„å›²ã‚’åºƒã’ã‚‹
+                float radius = (dynamic_cast<BossEnemy*>(enemy)) ? 200.0f : 30.0f;
+
+                // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã¨ã®å½“ãŸã‚Šåˆ¤å®šï¼ˆçƒä½“ï¼‰
+                auto result = MV1CollCheck_Sphere(Player::GetInstance().GetPlayerModel(), -1, attackCenter, radius);
+                if (result.HitNum > 0)
+                {
+                        int damage = enemy->GetAttackPower();
+                        Player::GetInstance().TakeDamage(damage); // ãƒ€ãƒ¡ãƒ¼ã‚¸å‡¦ç†ï¼ˆå†…éƒ¨ã§å¤šé‡é˜²æ­¢ï¼‰
+                }
+                MV1CollResultPolyDimTerminate(result);
+            }
+        }
+
+        // ===== 3. ãƒœã‚¹ã®ã‚¸ãƒ£ãƒ³ãƒ—æ”»æ’ƒï¼ˆä¸¡æ‰‹ï¼‰ =====
+        if (BossEnemy* boss = dynamic_cast<BossEnemy*>(enemy))
+        {
+            if (boss->GetIsJumpAttack()) // ã‚¸ãƒ£ãƒ³ãƒ—æ”»æ’ƒä¸­ãƒ•ãƒ©ã‚°
+            {
+                float currentTime_ = enemy->GetInfo().currentAnimTime_;
+                float totalTime_ = enemy->GetInfo().animTotalTime_;
+                float animRatio_ = currentTime_ / totalTime_;
+
+                if (animRatio_ >= 0.3f && animRatio_ <= 0.6f) // æ”»æ’ƒã‚¿ã‚¤ãƒŸãƒ³ã‚°ä¸­ã®ã¿
+                {
+                    // ä¸¡æ‰‹ã§æ”»æ’ƒåˆ¤å®šï¼ˆçƒä½“ï¼‰
+                    auto rightHandResult_ = MV1CollCheck_Sphere(Player::GetInstance().GetPlayerModel(), -1, enemy->GetRightHandPosition(), 70.0f);
+                    auto leftHandResult_ = MV1CollCheck_Sphere(Player::GetInstance().GetPlayerModel(), -1, enemy->GetLeftHandPosition(), 70.0f);
+
+                    if (rightHandResult_.HitNum > 0 || leftHandResult_.HitNum > 0)
+                    {
+                        Player::GetInstance().TakeDamage(10); // å›ºå®šãƒ€ãƒ¡ãƒ¼ã‚¸ï¼ˆã‚¸ãƒ£ãƒ³ãƒ—æ”»æ’ƒï¼‰
+                    }
+
+                    MV1CollResultPolyDimTerminate(rightHandResult_);
+                    MV1CollResultPolyDimTerminate(leftHandResult_);
+                }
+            }
+        }
+    }
 }
 
-void Collision::EnemyAttackCollision(const std::vector<Enemy*>& enemies)
-{
-	// “G‚Æ‚Ì“–‚½‚è”»’è
-	for (auto& enemy : enemies)
-	{
-		if (enemy->GetAttackFlg())
-		{
-			VECTOR righthandpos = enemy->GetRightHandPosition();
-			float angleY = enemy->GetRotY();  // ƒvƒŒƒCƒ„[‚ÌY²‰ñ“]
-			float attackradius = 20.0f;
-
-			// ƒvƒŒƒCƒ„[‚ÌY²‰ñ“]i‘OŒãj‚É‰Á‚¦‚ÄAX²‰ñ“]iã‰ºj‚ÅÎ‚ßã‚ÉƒIƒtƒZƒbƒg
-			VECTOR forward = VGet(sinf(angleY), 0.0f, cosf(angleY));
-
-			VECTOR attackCenter = VAdd(righthandpos, forward);
-
-			auto result = MV1CollCheck_Sphere(Player::GetInstance().GetPlayerModel(), -1, attackCenter, attackradius);
-			if (result.HitNum > 0)
-			{
-				// ƒN[ƒ‹ƒ_ƒEƒ“’†‚Å‚È‚¯‚ê‚Îƒ_ƒ[ƒW‚ğó‚¯‚é
-				if (Player::GetInstance().GetDamageCooldown() <= 0)
-				{
-					Player::GetInstance().SetDamage(10);
-					Player::GetInstance().SetDamageCooldown(60);	// –³“GŠÔ‚Ìİ’è
-
-					if (Player::GetInstance().GetHp() <= 0 && !Player::GetInstance().GetIsDeadFlag())
-					{
-						Player::GetInstance().ChangeAnimation(Player::Death, true);
-						SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::GAMEOVER);
-					}
-				}
-			}
-		}
-	}
-}
-
-
-// “G“¯m‚Ì“–‚½‚è”»’è
+// æ•µã¨æ•µã®è¡çª
 void Collision::EnemyToEnemyCollision(const std::vector<Enemy*> enemies)
 {
-	for (size_t i = 0; i < enemies.size(); ++i)
-	{
-		Enemy* enemyA = enemies[i];
-		if (!enemyA || enemyA->IsDead())continue;
+    for (size_t i = 0; i < enemies.size(); ++i)
+    {
+        auto* enemyA = enemies[i];
+        if (!enemyA || enemyA->IsDead()) continue;
 
-		VECTOR posA = enemyA->GetPosition();
+        VECTOR posA = enemyA->GetPosition();
 
-		//‚·‚×‚Ä‚Ì“G‚ÌƒyƒA‚ğƒ`ƒFƒbƒN
-		for (size_t j = i + 1; j < enemies.size(); ++j)
-		{
-			Enemy* enemyB = enemies[j];
-			if (!enemyB || enemyB->IsDead())continue;
+        for (size_t j = i + 1; j < enemies.size(); ++j)
+        {
+            auto* enemyB = enemies[j];
+            if (!enemyB || enemyB->IsDead()) continue;
 
-			VECTOR posB = enemyB->GetPosition();
+            VECTOR diff = VSub(enemyB->GetPosition(), posA);
+            float dist = VSize(diff);
 
-			// 2‘ÌŠÔ‚ÌƒxƒNƒgƒ‹‚Æ‹——£‚ğŒvZ
-			VECTOR diff = VSub(posB, posA);
-			float distance = VSize(diff);
+            // æŒ‡å®šè·é›¢æœªæº€ã§æŠ¼ã—è¿”ã™
+            if (dist < COLLISION_RADIUS * 2.0f && dist > 0.0f)
+            {
+                VECTOR pushDir = VNorm(diff);
+                VECTOR pushVec = VScale(pushDir, (COLLISION_RADIUS * 2.0f - dist) * 0.5f);
 
-			// ‹——£‚ª‹ß‚·‚¬‚éê‡‚Éˆ—
-			if (distance < COLLISION_RADIUS * 2.0f && distance>0.0f)
-			{
-				//‰Ÿ‚µ•Ô‚µƒxƒNƒgƒ‹‚ğŒvZ
-				VECTOR pushDir = VNorm(diff);
-				float overlap = COLLISION_RADIUS * 2.0f - distance;
-				VECTOR pushVec = VScale(pushDir, overlap * 0.5f);
-
-				//Œİ‚¢‚É‰Ÿ‚µ•Ô‚·
-				enemyA->SetEnemyPos(VSub(posA, pushVec));
-				enemyB->SetEnemyPos(VAdd(posB, pushVec));
-			}
-		}
-	}
+                enemyA->SetEnemyPos(VSub(posA, pushVec));
+                enemyB->SetEnemyPos(VAdd(enemyB->GetPosition(), pushVec));
+            }
+        }
+    }
 }
 
+// å‰£ã¨æ•µã®è¡çª
 void Collision::SwordToEnemyCollision(const std::vector<Enemy*>& enemies)
 {
-	if (Player::GetInstance().GetWeaponFlag() && Player::GetInstance().GetAttackFlag()) {
+    // æ­¦å™¨ã‚’æŒã£ã¦ã„ãªã„ or æ”»æ’ƒä¸­ã§ã¯ãªã„ ãªã‚‰ç„¡è¦–
+    if (!Player::GetInstance().GetIsWeapon() || !Player::GetInstance().GetIsAttack())
+        return;
 
-		// Œ•‚ÌUŒ‚”»’è—p‚ÌˆÊ’u‚Æ”¼Œa
-		VECTOR swordBase = Sword::GetInstance().GetSwordPosition();
-		float swordRadius = 30.0f;
+    // å‰£èº«ã®ä¸­å¿ƒã«çƒä½“ã‚’ã‚»ãƒƒãƒˆ
+    VECTOR swordBody = Sword::GetInstance().GetBodyPosition();
 
-		// ƒvƒŒƒCƒ„[‚ÌŒü‚«‚É‰‚¶‚ÄŒ•‚Ì’†S‚ÖƒIƒtƒZƒbƒg‚·‚é
-		float offset = 50.0f;  // Î‚ßã‚ÉˆÚ“®‚·‚é‹——£
-		float angleY = Player::GetInstance().GetRotY();  // ƒvƒŒƒCƒ„[‚ÌY²‰ñ“]
-		float angleX = Player::GetInstance().GetRotX();  // ƒvƒŒƒCƒ„[‚ÌX²‰ñ“]iã‰º‰ñ“]j
+    for (auto& enemy : enemies)
+    {
+        if (!enemy || enemy->IsDead()) continue;
 
-		// ƒvƒŒƒCƒ„[‚ÌY²‰ñ“]i‘OŒãj‚É‰Á‚¦‚ÄAX²‰ñ“]iã‰ºj‚ÅÎ‚ßã‚ÉƒIƒtƒZƒbƒg
-		VECTOR forward = VGet(sinf(angleY) * offset, sinf(angleX) * (offset + 30.0f), cosf(angleY) * offset);
+        //ã“ã®æ”»æ’ƒã§å½“ãŸã£ã¦ã„ãŸã‚‰ã‚¹ã‚­ãƒƒãƒ—
+        if (enemy->GetIsAssign()) continue;
 
-		// Œ•‚Ì’†SˆÊ’u‚ğƒIƒtƒZƒbƒg‚Å’²®
-		VECTOR swordCenter = VAdd(swordBase, forward);
+        auto result = MV1CollCheck_Sphere(enemy->GetModel(), -1, swordBody, 30.0f);
+        
+        // å½“ãŸã£ã¦ã„ãŸã‚‰ãƒ€ãƒ¡ãƒ¼ã‚¸ã‚’ä¸ãˆã‚‹
+        if (result.HitNum > 0)
+        {
+            // æ•µã«æ”»æ’ƒãŒå½“ãŸã£ãŸã¨ã
+            int attackPower = Player::GetInstance().GetAttackPower();
+            int damage = attackPower;
 
-		// “G‚Æ‚Ì“–‚½‚è”»’è
-		for (auto& enemy : enemies)
-		{
-			if (!enemy || enemy->IsDead()) continue;
+            // 10%ã®ç¢ºç‡ã§ã‚¯ãƒªãƒ†ã‚£ã‚«ãƒ«
+            if (GetRand(9) == 0)
+            {
+                damage *= 2;
+                Player::GetInstance().SetCriticalDisplay(true);  
+            }
 
-			int enemyModel = enemy->GetModel();
-			auto result = MV1CollCheck_Sphere(enemyModel, -1, swordCenter, swordRadius);
-			if (result.HitNum > 0)
-			{
-				enemy->SetDamage(10);
-			}
-			MV1CollResultPolyDimTerminate(result);
-		}
+            enemy->SetDamage(damage);
+            // ã“ã®æ”»æ’ƒä¸­ã¯å½“ãŸã‚‰ãªã„ã‚ˆã†ã«ã™ã‚‹
+            enemy->SetIsAssign(true);
 
-	}
+            // ãƒ’ãƒƒãƒˆã‚¹ãƒˆãƒƒãƒ—é–‹å§‹
+            Player::GetInstance().StartHitStop(0.08f);
+        }
+
+        MV1CollResultPolyDimTerminate(result);
+    }
 }
 
-
+//ãƒ‡ãƒãƒƒã‚°æç”»
 void Collision::DrawDebag()
 {
-	//ƒvƒŒƒCƒ„[‚Ì“·‘Ì
-	VECTOR playerpos = Player::GetInstance().GetPlayerPos();
-	playerpos.y += 100.0f;
-	DrawSphere3D(playerpos, 20, 32, 0xffffff, 0xffffff, false);
+    ////ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®çœŸã‚“ä¸­
+    //VECTOR playerPos = VAdd(Player::GetInstance().GetPlayerPos(), VGet(0.0f, 100.0f, 0.0f));
+    //DrawSphere3D(playerPos, 20, 32, 0xffffff, 0xffffff, false);
 
-	// Œ•‚ÌUŒ‚”»’è—p‚ÌˆÊ’u‚Æ”¼Œa
-	VECTOR swordBase = Sword::GetInstance().GetSwordPosition();
-	float swordRadius = 30.0f;
-	VECTOR swordCenter = swordBase;
-	// ƒvƒŒƒCƒ„[‚ÌŒü‚«‚É‘O•ûƒIƒtƒZƒbƒgiXZ•½–Êj
-	float offset = 30.0f;
-	float angleY = Player::GetInstance().GetRotY();
-	swordCenter.x += sinf(angleY) * offset;
-	swordCenter.z += cosf(angleY) * offset;
-	// Y²iã•ûŒüj‚É‰ÁZ
-	swordCenter.y += 50.0f;
-	DrawSphere3D(swordCenter, swordRadius, 32, 0xffffff, 0xffffff, false);
+    //// å‰£ã®å½“ãŸã‚Šåˆ¤å®š
+    //VECTOR swordBase = Sword::GetInstance().GetSwordPosition();
+    //VECTOR forward = VNorm(VGet(sinf(Player::GetInstance().GetRotY()), 0.0f, cosf(Player::GetInstance().GetRotY())));
+    //VECTOR swordCenter = VAdd(swordBase, VScale(forward, 50.0f));
+    //swordCenter.y += 50.0f;
+    //DrawSphere3D(swordCenter, 30.0f, 32, 0xffffff, 0xffffff, false);
 }

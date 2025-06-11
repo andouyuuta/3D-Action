@@ -9,6 +9,8 @@
 #include "../Object/EnemyManager.h"
 #include "../Object/Stage.h"
 #include "../Object/Collision.h"
+#include "../Object/Aicon.h"
+#include "../Object/Trail3D.h"
 #include "../Application.h"
 #include "../Manager/Camera.h"
 #include "Game.h"
@@ -16,12 +18,13 @@
 // コンストラクタ
 Game::Game(void)
 {
-	grid_ = nullptr;
 	player_ = nullptr;
 	sword_ = nullptr;
 	enemymng_ = nullptr;
 	stage_ = nullptr;
 	camera_ = nullptr;
+	collision_ = nullptr;
+	aicon_ = nullptr;
 }
 
 // デストラクタ
@@ -33,10 +36,6 @@ Game::~Game(void)
 // 初期化
 void Game::Init(void)
 {
-	// グリッド初期化
-	grid_ = new Grid();
-	grid_->SystemInit();
-
 	// カメラ初期化
 	camera_ = new Camera();
 	camera_->Init();
@@ -44,22 +43,23 @@ void Game::Init(void)
 	Stage::CreateInstance();
 	Stage::GetInstance().Init();
 
+	enemymng_ = new EnemyManager();
+	enemymng_->Init();
+
 	// プレイヤー初期化
 	Player::CreateInstance();
-	Player::GetInstance().Init();
+	Player::GetInstance().Init(enemymng_);
 
 	//剣初期化
 	Sword::CreateInstance();
 	Sword::GetInstance().Init();
 
-	enemymng_ = new EnemyManager();
-	enemymng_->Init();
+
+	aicon_ = new Aicon();
+	aicon_->Init();
 
 	collision_ = new Collision();
 	collision_->Init();
-
-	// グリッド初期化
-	grid_->GameInit();
 
 	// カメラの追従対象を設定
 	SceneManager& sceneManager = SceneManager::GetInstance();
@@ -75,65 +75,68 @@ void Game::Init(void)
 // 更新
 void Game::Update(void)
 {
-	// グリッド更新
-	grid_->Update();
+	Player::GetInstance().HitStop();
+	if (!Player::GetInstance().GetIsHitStop()) {
+		// カメラ更新
+		camera_->Update();
 
-	// カメラ更新
-	camera_->Update();
+		//敵更新
+		enemymng_->Update();
 
-	//敵更新
-	enemymng_->Update();
+		// プレイヤー更新
+		Player::GetInstance().Update(3);
 
-	// プレイヤー更新
-	Player::GetInstance().Update(enemymng_->GetEnemies());
+		//剣更新
+		Sword::GetInstance().Update();
 
-	//剣更新
-	Sword::GetInstance().Update();
+		//当たり判定
+		collision_->Update(enemymng_->GetEnemyPtrs());
 
-	//当たり判定
-	collision_->Update(enemymng_->GetEnemies());
+		//敵が全員倒されたらゲームクリアシーンへ移動
+		if (enemymng_->GetAliveEnemyCount() <= 0 && enemymng_->GetBossDead())
+		{
+			SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::GAMECLEAR);
+		}
 
-	//敵が全員倒されたらゲームクリアシーンへ移動
-	if (enemymng_->GetAliveEnemyCount() <= 0)
-	{
-		SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::GAMECLEAR);
-	}
+		// シーン遷移
+		InputManager& ins = InputManager::GetInstance();
+		if (ins.IsTrgDown(KEY_INPUT_C))
+		{
+			SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::GAMECLEAR);
+		}
+		if (ins.IsTrgDown(KEY_INPUT_E))
+		{
+			SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::GAMEOVER);
+		}
 
-	// シーン遷移
-	InputManager& ins = InputManager::GetInstance();
-	if (ins.IsTrgDown(KEY_INPUT_C))
-	{
-		SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::GAMECLEAR);
-	}
-	if (ins.IsTrgDown(KEY_INPUT_E))
-	{
-		SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::GAMEOVER);
 	}
 }
 
 // 描画
 void Game::Draw(void)
 {
+	ClearDrawScreen();  // 毎フレーム一番最初に！
+
 	//ステージの描画
 	Stage::GetInstance().Draw();
 
-	collision_->Draw();
-
-	// グリッドの描画
-	//grid_->Draw();
-
 	// プレイヤー描画
 	Player::GetInstance().Draw();
+
 	//剣描画
 	Sword::GetInstance().Draw();
 
 	enemymng_->Draw();
 
+	aicon_->Draw();
+
 	// カメラ設定
 	camera_->SetBeforeDraw();
 
+	collision_->Draw(enemymng_->GetEnemyPtrs());
+
 	// 文字の描画
-	DrawFormatString(20, 20, GetColor(0xff, 0xff, 0xff), "ゲーム画面");
+	//DrawFormatString(20, 20, GetColor(0xff, 0xff, 0xff), "ゲーム画面");
 	DrawFormatString(20, 80, GetColor(0xff, 0xff, 0xff), "Eキーでゲームオーバー");
 	DrawFormatString(20, 100, GetColor(0xff, 0xff, 0xff), "Cキーでゲームクリア");
 
@@ -144,13 +147,12 @@ void Game::Draw(void)
 // 解放
 void Game::Release(void)
 {
-	// グリッドの解放
-	grid_->Release();
-	delete grid_;
-
 	// カメラの解放
 	camera_->Release();
 	delete camera_;
+
+	aicon_->Release();
+	delete aicon_;
 
 	//剣の解放
 	Sword::GetInstance().Release();

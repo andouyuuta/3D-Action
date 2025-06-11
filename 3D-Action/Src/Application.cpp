@@ -9,6 +9,7 @@ Application* Application::instance_ = nullptr;
 // データパス関連
 const std::string Application::PATH_MODEL = "Data/Model/";
 const std::string Application::PATH_IMAGE = "Data/Image/";
+const std::string Application::PATH_AICON = "Data/Aicon/";
 const std::string Application::PATH_SOUND = "Data/Sound/";
 
 // 明示的にインスタンスを生成する

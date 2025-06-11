@@ -3,7 +3,7 @@
 #include <vector>
 
 class Sword;
-class Enemy;
+class EnemyManager;
 
 class Player
 {
@@ -29,34 +29,41 @@ public:
 	static constexpr float DEAD_ANIM_SPEED = 0.2f;		//死んでいる時
 	static constexpr float ATTACK_ANIM_SPEED = 0.75f;	//攻撃している
 
-	static constexpr int NoWeaponIdle = 0;				//武器なし待機
-	static constexpr int NoWeaponWalk = 1;				//武器なし歩き
-	static constexpr int NoWeaponRun = 2;				//武器なし走り
-	static constexpr int WeaponOut = 3;					//武器取り出し	
-	static constexpr int Sheach = 4;					//武器戻す
-	static constexpr int WeaponIdle = 5;				//武器あり待機
-	static constexpr int WeaponWalk = 6;				//武器あり歩き
-	static constexpr int WeaponRun = 7;					//武器あり走り
-	static constexpr int Strafe = 8;					//横歩き
-	static constexpr int Jump = 9;						//ジャンプ
-	static constexpr int Crouch = 10;					//しゃがみ
-	static constexpr int Crouch_Cancel = 11;			//しゃがみ解除
-	static constexpr int Crouch_Idle = 12;				//しゃがみ待機
-	static constexpr int Crouch_Guard = 13;				//しゃがみ防御
-	static constexpr int Crouch_Attack = 14;			//しゃがみ攻撃
-	static constexpr int Attack_1 = 15;					//攻撃１
-	static constexpr int Attack_2 = 16;					//攻撃２
-	static constexpr int Attack_3 = 17;					//攻撃３
-	static constexpr int Attack_4 = 18;					//攻撃４
-	static constexpr int Death = 19;					//死亡
 
 	// プレイヤーの最大HP
-	static constexpr int PLAYER_MAX_HP = 10;
+    int PLAYER_MAX_HP = 200;
+
+	// プレイヤーの最大攻撃力
+    int AttackPower_ = 150;
+
+	enum PlayerAnim {
+		NoWeaponIdle = 0,		//武器なし待機
+		NoWeaponWalk,			//武器なし歩き
+		NoWeaponRun,			//武器なし走り
+		WeaponOut,				//武器取り出し	
+		Sheach,					//武器戻す
+		WeaponIdle,				//武器あり待機
+		WeaponWalk,				//武器あり歩き
+		WeaponRun,				//武器あり走り
+		Strafe,					//横歩き
+		Jump,					//ジャンプ
+		Crouch,					//しゃがみ
+		Crouch_Cancel,			//しゃがみ解除
+		Crouch_Idle,			//しゃがみ待機
+		Crouch_Guard,			//しゃがみ防御
+		Crouch_Attack,
+		First_Attack,			//攻撃１
+		Second_Attack,			//攻撃２
+		Third_Attack,			//攻撃３
+		Force_Attack,			//攻撃４
+		Death,					//死亡
+		Impact,					//攻撃受けたとき
+	};
 
 	// プレイヤーの情報の構造体
 	struct Info
 	{
-		int modelid_;			// モデルID
+		int modelId_;			// モデルID
 
 		VECTOR pos_;			// 座標
 		VECTOR rot_;			// 回転値
@@ -65,6 +72,7 @@ public:
 		int moveDir_;			// 移動方向
 		int moveKind_;			// プレイヤーの移動状態
 		int hp_;				// HP
+		int attackPower_;		// 攻撃力
 
 		// 移動ベクトル
 		VECTOR moveVec_;		// 移動ベクトル
@@ -74,25 +82,31 @@ public:
 		VECTOR localRot_;		// 調整用初期角度
 
 		//アニメーション
-		int animindex_;			//アニメーションの種類
+		int animIndex_;			//アニメーションの種類
 		int  animAttachNo_;		// 設定するアニメーションの番号
 		float animTotalTime_;	// アニメーションの総再生時間
 		float currentAnimTime_; // 直前のアニメーションの時間
-		bool animlockflg_;		//アニメーションロック
+		bool isAnimLock_;		//アニメーションロック
 
-		bool isdead_;			//死亡したかどうか
-		bool crouchflg_;		//しゃがんでいるか
-		bool crouchattackflg_;	//しゃがみ攻撃しているか
-		bool weaponflg_;		//武器出しているか
-		bool attackflg_;		//攻撃しているか
-		bool comboflg_;	//コンボしているか
-		int combostep_;			//コンボ段階
+		bool isDead_;			//死亡したかどうか
+		bool isCrouch_;			//しゃがんでいるか
+		bool isWeapon_;			//武器出しているか
+		bool isAttack_;			//攻撃しているか
+		bool isCombo_;			//コンボしているか
+		int comboStep_;			//コンボ段階
 
-		float currentratio_;	//現在のアニメーションの再生時間(割合)
-		float remainingtime_;	//アニメーションがあとどれくらいで終わるか
+		float currentRatio_;	//現在のアニメーションの再生時間(割合)
+		float remainingTime_;	//アニメーションがあとどれくらいで終わるか
 
-		bool deadFlg;			//死亡したかどうか
+		bool isGameOver_;		//死亡したかどうか
+		bool isImpact_;			//攻撃受けたか
+		bool isInvincible_;		//無敵かどうか
+		bool hitPlayer_;		// 攻撃一回で一度しかヒットしないようにするフラグ
 
+		float hitStopTime_;		// ヒットストップ用タイマー
+		bool isHitStop_;		// ヒットストップ用フラグ
+	
+		MATRIX rotationMatrix_;	// 回転(マトリックス)
 	};
 
 	// インスタンスの生成
@@ -105,9 +119,8 @@ public:
 	Player(void);		// コンストラクタ
 	~Player(void);		// デストラクタ
 
-	void Init(void);	// 初期化
-	void Update(const std::vector<Enemy*>& enemies);	// 更新
-	void UpdateMove(void);
+	void Init(EnemyManager* mng);	// 初期化
+	void Update(float deltaTime);	// 更新
 	void Draw(void);	// 描画
 	void Release(void); // 解放
 
@@ -119,39 +132,57 @@ public:
 	// ゲッター関数
 	struct Info GetInfo(void) { return list; }
 
-	// プレイヤーのHPを減らす
+	// プレイヤーのスピードを設定
 	void SetPlayerSpeed(const VECTOR& speed) { list.moveVec_ = speed; }	// 速度設定
-
-	// プレイヤーの攻撃が敵に当たった場合のHP処理
-	void AttackEnemies(const std::vector<Enemy*>& enemies);
-
-	// 当たり判定
-	void CheckEnemyCollision(const std::vector<Enemy*>& enemies);
 
 	void ChangeAnimation(int idx, bool lock = false);	//アニメーション切り替え
 
-	[[nodiscard]] int GetPlayerModel(void) { return list.modelid_; }
+	void HitStop(void);
+
+	void RecoverHp();		// 全回復
+	void AddAttack(int amount); // 攻撃力を上げる
+	void AddMaxHp(int amount);  // HP,攻撃力を上げる
+
+	void SetCriticalDisplay(bool enable);	// クリティカル表示処理
+
+	bool IsPlayingImpactAnimation()const;	// アニメーション中かどうか
+	bool AttackActive(void);				// 攻撃アニメーションかどうか
+
+	bool IsDamagedThisFrame_;				// このフレームでダメージを受けたか
+
+	// ゲッター
+	[[nodiscard]] int GetPlayerModel(void) { return list.modelId_; }
 	[[nodiscard]] VECTOR GetPlayerPos(void) { return list.pos_; }
 	[[nodiscard]] VECTOR GetPlayerRot(void) { return list.rot_; }
 	[[nodiscard]] float GetRotX(void) { return list.rot_.x; }
 	[[nodiscard]] float GetRotY(void) { return list.rot_.y; }
-	[[nodiscard]] bool GetWeaponFlag(void) { return list.weaponflg_; }
-	[[nodiscard]] bool GetIsDeadFlag(void) { return list.isdead_; }
-	[[nodiscard]] int GetRightHandIndex(void) { return MV1SearchFrame(list.modelid_, "mixamorig:RightHand"); }
-	[[nodiscard]] VECTOR GetRightHandPosition(void) { return MV1GetFramePosition(list.modelid_, GetRightHandIndex()); }
+	[[nodiscard]] bool GetIsWeapon(void) { return list.isWeapon_; }
+	[[nodiscard]] bool GetIsDead(void) { return list.isDead_; }
+	[[nodiscard]] int GetRightHandIndex(void) { return MV1SearchFrame(list.modelId_, "mixamorig:RightHand"); }
+	[[nodiscard]] VECTOR GetRightHandPosition(void) { return MV1GetFramePosition(list.modelId_, GetRightHandIndex()); }
 	[[nodiscard]] int GetDamageCooldown(void) { return damageCooldown_; }
 	[[nodiscard]] int GetHp(void) { return list.hp_; }
-	[[nodiscard]] bool GetAttackFlag(void){return list.attackflg_;}
-	[[nodiscard]] void SetPlayerPos(VECTOR pos) { list.pos_ = pos; MV1SetPosition(list.modelid_, list.pos_); }
+	[[nodiscard]] bool GetIsAttack(void){return list.isAttack_;}
+	[[nodiscard]] bool GetIsInvincible(void)const { return list.isInvincible_; }
+	[[nodiscard]] bool GetIsHitStop(void)const { return list.isHitStop_; }
+	[[nodiscard]] int GetComboStep(void)const { return list.comboStep_; }
+	[[nodiscard]] MATRIX GetRotationMat(void)const { return list.rotationMatrix_; }
+	int GetAttackPower()const { return list.attackPower_ ; }	// プレイヤーの攻撃力
+
+	// セッター
+	[[nodiscard]] void SetPlayerPos(VECTOR pos) { list.pos_ = pos; MV1SetPosition(list.modelId_, list.pos_); }
 	[[nodiscard]] void SetDamageCooldown(int damage) { damageCooldown_ = damage; }
-	[[nodiscard]] void SetMoveSpeed(int speed) { list.moveSpeed_ = speed; }
-	[[nodiscard]] void DecreaseCoolDown(int damage) { damageCooldown_ += damage; }
-	[[nodiscard]] void SetDamage(int hp);
-	[[nodiscard]] void SetIsDead(bool dead) { list.isdead_ = dead; }
+	[[nodiscard]] void SetMoveSpeed(float speed) { list.moveSpeed_ = speed; }
+	[[nodiscard]] void DecreaseCoolDown(int damage) { damageCooldown_ -= damage; }
+	[[nodiscard]] void TakeDamage(int damage);
+	[[nodiscard]] void SetIsDead(bool dead) { list.isDead_ = dead; }
+	[[nodiscard]] void SetInvincible(bool flg) { list.isInvincible_ = flg; }
+	[[nodiscard]] void SetHitPlayer(bool hitflg) { list.hitPlayer_ = hitflg; }
+	[[nodiscard]] void StartHitStop(float time) { list.hitStopTime_ = time; list.isHitStop_ = true; }
 private:
 
 	// 敵
-	Enemy* enemy_;
+	EnemyManager* enemymng_;
 
 	// 静的インスタンス
 	static Player* instance_;
@@ -161,11 +192,23 @@ private:
 
 	int damageCooldown_; // ダメージ間隔制御用
 
+	// プレイヤーがダメージ中かどうか(多段ヒット防止用)
+	bool isDamaged_;
+	// 無敵時間の残り時間(秒)
+	float invincibleTime_;
+
+	// クリティカル表示用
+	bool showCriticalText_;
+	float criticalDisplayTime_;
+
+
+	void UpdateMove(void);								//移動更新
 	void PlayerMove(int idle, int walk, int run);		//プレイヤーの動き
 	bool CrouchUpdate(void);							//しゃがみ
 	bool AttackUpdate(void);							//攻撃
 	bool AttackCombo(int nowcombo, int nextanimidx, int nextstep, float reception, float remainingtime);
 	void PlayAnimation(void);							//アニメーション再生
 	void DebugAnimation(void);							//数字キーでアニメーション切り替え
+
 };
 

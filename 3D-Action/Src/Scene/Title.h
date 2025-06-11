@@ -37,6 +37,7 @@ public:
 
 private:
 	// ‰æ‘œ
+	int titleImg_;
 
 	// ƒJ[ƒ\ƒ‹‚ª”ÍˆÍ“à‚É‚ ‚é‚©‚Ç‚¤‚©
 	bool mouseFlg_;

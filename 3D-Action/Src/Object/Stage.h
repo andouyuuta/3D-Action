@@ -10,13 +10,13 @@ public:
 	// インスタンスの取得
 	static Stage& GetInstance(void);
 
-	Stage();
-	~Stage();
+	Stage();		// コンストラクタ
+	~Stage();		// デストラクタ
 
-	void Init(void);
-	void Update(void);
-	void Draw(void);
-	void Release(void);
+	void Init(void);	// 初期化
+	void Update(void);	// 更新
+	void Draw(void);	// 描画
+	void Release(void); // 解放
 
 	struct Info
 	{

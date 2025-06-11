@@ -11,6 +11,7 @@
 // コンストラクタ
 Title::Title(void) : SceneBase()
 {
+	titleImg_ = -1;
 	mouseFlg_ = false;
 }
 
@@ -22,6 +23,8 @@ Title::~Title(void)
 // 初期化
 void Title::Init(void)
 {
+	titleImg_ = LoadGraph("Data/Image/title.png");
+
 	// フラグの初期化
 	mouseFlg_ = false;
 
@@ -62,7 +65,7 @@ void Title::Update(void)
 void Title::Draw(void)
 {
 	// タイトル画像の描画
-
+	DrawGraph(0, 0, titleImg_, true);
 
 	// 透過素材の描画
 	

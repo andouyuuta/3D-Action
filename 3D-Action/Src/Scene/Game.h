@@ -9,6 +9,8 @@ class Enemy;
 class EnemyManager;
 class Stage;
 class Collision;
+class Aicon;
+class Trail3D;
 
 class Game : public SceneBase
 {
@@ -23,10 +25,7 @@ public:
 	void Update(void) override;		// 更新	
 	void Draw(void) override;		// 描画
 	void Release(void) override;	// 解放
-
 private:
-	// グリッド線
-	Grid* grid_;
 
 	// カメラ
 	Camera* camera_;
@@ -42,6 +41,9 @@ private:
 
 	//ステージ
 	Stage* stage_;
+
+	// アイコン
+	Aicon* aicon_;
 
 	//当たり判定
 	Collision* collision_;

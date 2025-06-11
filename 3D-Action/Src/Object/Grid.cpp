@@ -26,6 +26,7 @@ void Grid::Update(void)
 {
 }
 
+// •`‰æ
 void Grid::Draw(void)
 {
 	// üÀ•W
@@ -58,6 +59,7 @@ void Grid::Draw(void)
 	DrawSphere3D(ePos, SPHERE_RADIUS, SPHERE_DIV_NUM, 0x00ff00, 0x00ff00, true);
 }
 
+// ‰ğ•úˆ—
 void Grid::Release(void)
 {
 }

@@ -10,8 +10,9 @@ No00,Idle(待機)
 No01,Walk(歩く)
 No02,Run(走る)
 No03,Punch(パンチ)
-No04,Swiping(大ぶりの攻撃)
+No04,Death(死亡)
 No05,JumpAttack(ジャンプ攻撃)
+No06,Swiping(大ぶりの攻撃)
 
 
 PlayerModel

@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Src\Object\Aicon.cpp" />
     <ClCompile Include="Src\Object\Collision.cpp" />
     <ClCompile Include="Src\Object\BossEnemy.cpp" />
     <ClCompile Include="Src\Object\EnemyManager.cpp" />
@@ -41,8 +42,10 @@
     <ClCompile Include="Src\Utility\Utility.cpp" />
     <ClCompile Include="Src\Object\Sword.cpp" />
     <ClCompile Include="Src\Object\Stage.cpp" />
+    <ClCompile Include="Src\Object\Trail3D.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Src\Object\Aicon.h" />
     <ClInclude Include="Src\Object\Collision.h" />
     <ClInclude Include="Src\Object\BossEnemy.h" />
     <ClInclude Include="Src\Object\EnemyManager.h" />
@@ -65,6 +68,7 @@
     <ClInclude Include="Src\Utility\Utility.h" />
     <ClInclude Include="Src\Object\Sword.h" />
     <ClInclude Include="Src\Object\Stage.h" />
+    <ClInclude Include="Src\Object\Trail3D.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

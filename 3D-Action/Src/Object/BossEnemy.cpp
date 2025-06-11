@@ -1,258 +1,219 @@
 #include "BossEnemy.h"
-#include "../Application.h"
-#include "../Manager/InputManager.h"
+#include <DxLib.h>
+#include <corecrt_math.h>
+#include "Player.h"
+#include "../Manager/SceneManager.h"
 
-BossEnemy::BossEnemy(void)
+BossEnemy::BossEnemy()
 {
-	list.modelid_=-1;
-
-	VECTOR scale_ = { 1.0f,1.0f,1.0f };
-	VECTOR pos_ = { 0.0f,0.0f,0.0f };
-	VECTOR rot_ = { 0.0f,0.0f,0.0f };
-	float moveSpeed_ = 0.0f;
-	int moveDir_ = 0;
-	int moveKind_ = 0;
-
-	VECTOR moveVec_ = { 0.0f,0.0f,0.0f };
-	VECTOR oldMoveVec_ = { 0.0f,0.0f,0.0f };
-	VECTOR moveVecRad_ = { 0.0f,0.0f,0.0f };
-
-	VECTOR localRot_ = { 0.0f,0.0f,0.0f };
-	int animindex_ = 0;
-	int  animAttachNo_ = 0;
-	float animTotalTime_ = 0.0f;
-	float currentAnimTime_ = 0.0f;
-	bool animlockflg_ = false;
-
-	bool deadflg_ = false;
+    isSwipe = false;
+    isJumpAttack_ = false;
+    jumpAttackTime_ = 0.0f;
+    jumpStartPos_ = { 0.0f,0.0f,0.0f };
+    jumpEndPos_ = { 0.0f,0.0f,0.0f };
 }
 
-BossEnemy::~BossEnemy(void)
+BossEnemy::~BossEnemy() = default;
+
+// 初期化処理
+void BossEnemy::Init(int bossModelID, int hp, int attack)
 {
+    // 通常の敵の初期化処理を利用
+    Enemy::Init(bossModelID, hp, attack); // EnemyのInitを呼ぶ
+    InitBossStats();                     // ボス特有の設定
+    list.isBoss_ = true;
 }
 
-// 初期化
-void BossEnemy::Init(void)
+//ボスのステータス変更
+void BossEnemy::InitBossStats()
 {
-	//モデル
-	list.modelid_ = MV1LoadModel((Application::PATH_MODEL + "BossEnemyModel.mv1").c_str());
-	//座標
-	list.pos_ = { 0.0f,0.0f,50.0f };
-	MV1SetPosition(list.modelid_, list.pos_);
-	//大きさ
-	list.scale_ = { 1.0f,1.0f,1.0f };
-	MV1SetScale(list.modelid_, list.scale_);
-	//回転
-	list.rot_ = { 0.0f,0.0f,0.0f };
-	MV1SetRotationXYZ(list.modelid_, list.rot_);
+    list.scale_ = { 2.0f,2.0f,2.0f };             // ボスサイズを拡大
+    MV1SetScale(list.modelId_, list.scale_);
 
-	//アニメーション関連
-	list.animindex_ = 0;
-	list.animAttachNo_ = MV1AttachAnim(list.modelid_, list.animindex_);
-	list.animTotalTime_ = MV1GetAttachAnimTotalTime(list.modelid_, list.animAttachNo_);
-	list.currentAnimTime_ = 0.0f;
-	list.animlockflg_ = false;
-	MV1SetAttachAnimTime(list.modelid_, list.animAttachNo_, list.currentAnimTime_);
-
-	list.moveKind_ = 0;
-
-	list.deadflg_ = false;
+    list.hp_ = BOSS_MAX_HP;                       // HPを大幅に上昇
+    list.moveSpeed_ = 3.0f;
+    list.isBoss_ = true;
 }
 
-// 更新
-void BossEnemy::Update(void)
+// 更新処理
+void BossEnemy::Update()
 {
-	PlayAnimation();
-	DebugAnimation();
+    VECTOR toPlayer = VSub(Player::GetInstance().GetPlayerPos(), list.pos_);
+    //プレイヤーとの距離計算
+    float dist = VSize(toPlayer);
+
+    //ジャンプ攻撃
+    if (isJumpAttack_)
+    {
+        PlayAnimation();
+        float jumpattackrate = list.currentAnimTime_ / list.animTotalTime_;
+
+        float jamptime = list.animTotalTime_ * JUMP_RATIO;  // ジャンプした時間(割合)
+        float landtime = list.animTotalTime_ * LAND_RATIO;  // 着地する時間(割合)
+
+        if (list.currentAnimTime_ < jamptime)
+        {
+            // ジャンプアニメーションのジャンプする前は移動しない
+        }
+        else if (list.currentAnimTime_ <= landtime)
+        {
+            // 空中移動フェーズ
+            float moveRate = (list.currentAnimTime_ - jamptime) / (landtime - jamptime);
+            list.pos_ = VAdd(VScale(VSub(jumpEndPos_, jumpStartPos_), moveRate), jumpStartPos_);
+        }
+        else
+        {
+            // 着地後
+            list.pos_ = jumpEndPos_;
+            list.pos_.y = 0.0f;
+        }
+
+        // モデル更新とアニメ同期
+        MV1SetAttachAnimTime(list.modelId_, list.animAttachNo_, list.currentAnimTime_);
+        MV1SetPosition(list.modelId_, list.pos_);
+        MV1SetRotationXYZ(list.modelId_, list.rot_);
+
+        // 位置更新（ジャンプ移動）
+        if (list.currentAnimTime_ >= list.animTotalTime_)
+        {
+            isJumpAttack_ = false;
+            jumpAttackTime_ = 0.0f;
+            list.isAnimLock_ = false;
+            list.isAttack_ = false;
+            ChangeAnimation(EnemyAnim::ANIM_IDLE);
+        }
+        return;
+    }
+    else
+    {
+        Enemy::Update();
+    }
+
+    //ジャンプ攻撃する範囲
+    if (dist > 300.0f && dist < JUMP_ATTACK_RANGE)
+    {
+        ChangeAnimation(EnemyAnim::ANIM_JUMP_ATTACK, true);
+
+        jumpStartPos_ = list.pos_;
+        jumpEndPos_ = Player::GetInstance().GetPlayerPos();
+        // プレイヤーからボスへのベクトル（進行方向の逆）
+        VECTOR toPlayer = VNorm(VSub(jumpEndPos_, list.pos_));
+
+        // プレイヤーの後ろ方向にオフセット（例：100.0f ユニット）
+        float offsetDistance = 100.0f;
+        jumpEndPos_ = VSub(jumpEndPos_, VScale(toPlayer, offsetDistance));
+
+        // y座標は地面に合わせる
+        jumpEndPos_.y = 0.0f;
+        jumpAttackTime_ = 0.0f;
+        isJumpAttack_ = true;
+
+        return;
+    }
 }
 
 // 描画
-void BossEnemy::Draw(void)
+void BossEnemy::Draw()
 {
-	MV1DrawModel(list.modelid_);
-}
+    // ボスの描画ロジックが特別でなければそのままでOK
+    Enemy::Draw();
+    VECTOR pos = VAdd(list.pos_, VGet(0.0f, 150.0f, 0.0f));
+    DrawSphere3D(pos, 100.0f, 32, 0xffffff, 0xffffff, false);
+    if (list.isAttack_)
+    {
+        VECTOR forward = VNorm(VGet(sinf(list.rot_.y), 0.0f, cosf(list.rot_.y)));
+        VECTOR attackCenter = VAdd(GetRightHandPosition(), VScale(forward, 50.0f));
+        DrawSphere3D(attackCenter, 120.0f, 32, 0xffffff, 0xffffff, false);
+    }
+    if (isJumpAttack_)
+    {
+        //アニメーションの現在位置
+        float currenttime = list.currentAnimTime_;
+        float totaltime = list.animTotalTime_;
+        float animratio = currenttime / totaltime;
+        if (animratio >= 0.3f && animratio <= 0.6f) {
 
-// 解放
-void BossEnemy::Release(void)
-{
-	MV1DeleteModel(list.modelid_);
-}
+            // 敵の右手の位置を取得して球体をセット
+            VECTOR forward = VNorm(VGet(sinf(list.rot_.y), 0.0f, cosf(list.rot_.y)));
+            VECTOR rightattackCenter = VAdd(GetRightHandPosition(), VScale(forward, 50.0f));
 
-//移動
-void BossEnemy::UpdateMove(void)
-{
-	//// 入力制御取得
-	//InputManager& ins = InputManager::GetInstance();
+            DrawSphere3D(GetRightHandPosition(), 70.0f, 32, 0xffffff, 0xffffff, false);
+            DrawSphere3D(GetLeftHandPosition(), 70.0f, 32, 0xffffff, 0xffffff, false);
+        }
+    }
+    if (list.isAttack_)
+    {
 
-	//if (list.animlockflg_)
-	//{
-	//	return;
-	//}
-
-	////死亡時にも移動させない
-	//if (list.deadflg_)
-	//{
-	//	list.moveSpeed_ = MOVE_SPEED_STOP;
-	//	ChangeAnimation(19);
-	//	return;
-	//}
-
-	//// WASDでプレイヤー移動
-	//list.moveVec_ = { 0.0f, 0.0f, 0.0f };
-
-	//// 左・右・手前・奥のベクトルを作成する
-	//VECTOR RIGHT_MOVE_VEC = { 1.0f,  0.0f,  0.0f };
-	//VECTOR LEFT_MOVE_VEC = { -1.0f,  0.0f,  0.0f };
-	//VECTOR FRONT_MOVE_VEC = { 0.0f,  0.0f,  1.0f };
-	//VECTOR BACK_MOVE_VEC = { 0.0f,  0.0f, -1.0f };
-
-	//// 入力方向に移動ベクトルを追加する
-	//if (ins.IsNew(KEY_INPUT_UP)) { list.moveVec_ = VAdd(list.moveVec_, FRONT_MOVE_VEC); }
-	//if (ins.IsNew(KEY_INPUT_LEFT)) { list.moveVec_ = VAdd(list.moveVec_, LEFT_MOVE_VEC); }
-	//if (ins.IsNew(KEY_INPUT_DOWN)) { list.moveVec_ = VAdd(list.moveVec_, BACK_MOVE_VEC); }
-	//if (ins.IsNew(KEY_INPUT_RIGHT)) { list.moveVec_ = VAdd(list.moveVec_, RIGHT_MOVE_VEC); }
-
-
-
-	//// ベクトルの移動が行われていたら座標更新
-	//if (IsMove(list.moveVec_))
-	//{
-	//	// 移動状態の設定
-	//	list.moveKind_ = 1;
-
-	//	//// カメラ角度分設定する
-	//	//VECTOR cameraAngles = SceneManager::GetInstance().GetCamera()->GetCameraAngles();
-	//	//MATRIX cameraMatY = MGetRotY(cameraAngles.y);
-	//	//list.moveVec_ = VTransform(list.moveVec_, cameraMatY);
-
-	//	// スタミナが切れているかどうか
-	//	bool spFlg_ = false;
-
-	//	if (spFlg_)
-	//	{
-	//		// スタミナない状態
-	//		list.moveSpeed_ = MOVE_SPEED_STOP;
-	//	}
-	//	else
-	//	{
-	//		if (ins.IsNew(KEY_INPUT_LSHIFT))
-	//		{
-	//			// ダッシュ状態
-	//			list.moveSpeed_ = MOVE_SPEED_RUN;
-	//			ChangeAnimation(2);
-	//		}
-	//		else
-	//		{
-	//			// 歩き状態
-	//			list.moveSpeed_ = MOVE_SPEED_WALK;
-	//			ChangeAnimation(1);
-	//		}
-	//	}
-
-	//	// 座標更新
-	//	list.moveVec_ = VNorm(list.moveVec_);
-	//	list.moveVec_ = VScale(list.moveVec_, list.moveSpeed_);
-	//	list.pos_ = VAdd(list.pos_, list.moveVec_);
-	//	list.oldMoveVec_ = list.moveVec_;
-
-	//	// 方向を角度に変換する( XZ平面 Y軸)
-	//	list.moveVecRad_.y = atan2f(list.moveVec_.x, list.moveVec_.z);
-
-	//	// シンプルに計算角度を設定してみる
-	//	list.rot_.y = list.moveVecRad_.y;
-
-	//	// 座標設定
-	//	MV1SetPosition(list.modelid_, list.pos_);
-	//}
-	//else
-	//{
-	//	// 移動状態の設定
-	//	list.moveKind_ = 0;
-
-	//	//アニメーションロックされていないとき待機
-	//	if (!list.animlockflg_)
-	//	{
-	//		ChangeAnimation(0);
-	//	}
-	//}
-
+    }
 }
 
 //アニメーション再生
-void BossEnemy::PlayAnimation(void)
+void BossEnemy::PlayAnimation()
 {
-	DebugAnimation();			//数字キーでアニメーション切り替え
-
-	switch (list.animindex_)
-	{
-		//ループさせる
-	case 0:			//待機
-	case 1:			//歩く
-	case 2:			//走る
-		list.currentAnimTime_ += ANIM_SPEED;
-		if (list.currentAnimTime_ > list.animTotalTime_)
-		{
-			list.currentAnimTime_ = 0.0f;
-		}
-		break;
-		//ループさせない
-	case 3:			//パンチ
-	case 4:			//大ぶりの攻撃
-		list.currentAnimTime_ += ANIM_SPEED;
-		if (list.currentAnimTime_ >= list.animTotalTime_)
-		{
-			list.currentAnimTime_ = list.animTotalTime_;
-			list.animlockflg_ = false;
-		}
-		break;
-	case 5:			//死亡
-		list.currentAnimTime_ += DEAD_ANIM_SPEED;
-		if (list.currentAnimTime_ >= list.animTotalTime_)
-		{
-			list.currentAnimTime_ = list.animTotalTime_;
-			list.animlockflg_ = false;
-		}
-		break;
-	default:
-		break;
-	}
-	MV1SetAttachAnimTime(list.modelid_, list.animAttachNo_, list.currentAnimTime_);
-	MV1SetPosition(list.modelid_, list.pos_);
+    switch (list.animIndex_)
+    {
+    case ANIM_IDLE:
+    case ANIM_WALK:
+    case ANIM_RUN:
+        list.currentAnimTime_ += BOSS_ANIM_SPEED;
+        if (list.currentAnimTime_ > list.animTotalTime_)
+        {
+            list.currentAnimTime_ = 0.0f;
+        }
+        break;
+    case ANIM_ATTACK:
+        list.currentAnimTime_ += BOSS_ANIM_SPEED;
+        if (list.currentAnimTime_ >= list.animTotalTime_)
+        {
+            list.currentAnimTime_ = list.animTotalTime_;
+            list.isAnimLock_ = false;
+            list.isAttack_ = false;
+        }
+        break;
+    case ANIM_SWIP:
+        list.currentAnimTime_ += BOSS_ANIM_SPEED;
+        if (list.currentAnimTime_ >= list.animTotalTime_)
+        {
+            list.currentAnimTime_ = list.animTotalTime_;
+            list.isAnimLock_ = false;
+            isSwipe = false;
+        }
+        break;
+    case ANIM_JUMP_ATTACK:
+        list.currentAnimTime_ += BOSS_JUMP_ANIM_SPEED;
+        if (list.currentAnimTime_ >= list.animTotalTime_)
+        {
+            list.currentAnimTime_ = list.animTotalTime_;
+            list.isAnimLock_ = false;
+            isJumpAttack_ = false;
+        }
+        break;
+    case ANIM_DEAD:
+        list.currentAnimTime_ += BOSS_DEAD_ANIM_SPEED;
+        if (list.currentAnimTime_ >= list.animTotalTime_)
+        {
+            list.currentAnimTime_ = list.animTotalTime_;
+            list.isAnimLock_ = false;
+        }
+        break;
+    default:
+        break;
+    }
+    MV1SetAttachAnimTime(list.modelId_, list.animAttachNo_, list.currentAnimTime_);
+    MV1SetPosition(list.modelId_, list.pos_);
 }
 
-//矢印キーでアニメーション切り替え
-void BossEnemy::DebugAnimation(void)
+// アニメーション
+void BossEnemy::ChangeAnimation(int idx, bool lock)
 {
-	InputManager& ins = InputManager::GetInstance();
-	if (ins.IsTrgDown(KEY_INPUT_0)) {
-		ChangeAnimation(0);
-	}
-	if (ins.IsTrgDown(KEY_INPUT_1)) {
-		ChangeAnimation(1);
-	}
-	if (ins.IsTrgDown(KEY_INPUT_2)) {
-		ChangeAnimation(2);
-	}
-	if (ins.IsTrgDown(KEY_INPUT_3)) {
-		ChangeAnimation(3);
-	}
-	if (ins.IsTrgDown(KEY_INPUT_4)) {
-		ChangeAnimation(4);
-	}
-	if (ins.IsTrgDown(KEY_INPUT_5)) {
-		ChangeAnimation(5);
-	}
-}
-
-//アニメーション切り替え
-void BossEnemy::ChangeAnimation(int idx)
-{
-	if (list.animindex_ != idx) {
-		MV1DetachAnim(list.modelid_, list.animAttachNo_);
-		list.animindex_ = idx;
-		list.animAttachNo_ = MV1AttachAnim(list.modelid_, list.animindex_);
-		list.animTotalTime_ = MV1GetAttachAnimTotalTime(list.modelid_, list.animAttachNo_);
-		list.currentAnimTime_ = 0.0f;
-		MV1SetAttachAnimTime(list.modelid_, list.animAttachNo_, list.currentAnimTime_);
-	}
+    if (list.animIndex_ != idx) {
+        MV1DetachAnim(list.modelId_, list.animAttachNo_);
+        list.animIndex_ = idx;
+        list.animAttachNo_ = MV1AttachAnim(list.modelId_, list.animIndex_);
+        list.animTotalTime_ = MV1GetAttachAnimTotalTime(list.modelId_, list.animAttachNo_);
+        list.currentAnimTime_ = 0.0f;
+        MV1SetAttachAnimTime(list.modelId_, list.animAttachNo_, list.currentAnimTime_);
+        //ロック指定されたらフラグON
+        list.isAnimLock_ = lock;
+    }
 }
