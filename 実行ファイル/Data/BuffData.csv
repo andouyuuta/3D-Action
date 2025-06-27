@@ -1,0 +1,6 @@
+﻿ID,ImagePath,攻撃力上昇,HP上昇,成功率(%),成功時,失敗時,説明
+0,AttackUP.png,40,0,,,,攻撃力が上昇する
+1,AttackHPUP.png,30,30,,,,攻撃とHPが上がる
+2,Probability.png,0,0,40,60,-80,ランダムで攻撃力変化
+3,Strongest.png,320,0,,,,攻撃力超上昇
+4,Attack_80.png,80,0,,,,攻撃力+80
