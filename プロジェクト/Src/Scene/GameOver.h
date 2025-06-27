@@ -19,6 +19,8 @@ private:
 	// ‰æ‘œ
 	int hightLight_;
 
+	int waitFrame_;
+
 	// ƒJ[ƒ\ƒ‹‚ª”ÍˆÍ“à‚É‚ ‚é‚©‚Ç‚¤‚©
 	bool gameFlg_;
 	bool titleFlg_;

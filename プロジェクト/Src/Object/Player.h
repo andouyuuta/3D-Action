@@ -136,7 +136,6 @@ public:
 	bool IsDamagedThisFrame_ = false;
 
 private:
-	// 外部参照
 	EnemyManager* enemymng_;
 	AnimationManager* animation_;
 	Camera* camera_;
@@ -154,9 +153,10 @@ private:
 	float criticalDisplayTime_ = 0.0f;
 	int criticalFontHandle_ = -1;
 
-	// 内部更新関数
-	void UpdateMove(void);
-	void PlayerMove(int idleAnim, int walkAnim, int runAnim);
-	bool CrouchUpdate(void);
-	bool AttackUpdate(void);
+	void UpdateMove(void);		// 全体の動き
+	void PlayerMove(int idleAnim, int walkAnim, int runAnim);		// 歩きなどの動き
+	bool CrouchUpdate(void);	// しゃがみ
+	bool AttackUpdate(void);	// 攻撃
+
+	void DrawDebug(void);
 };

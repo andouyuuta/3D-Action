@@ -107,8 +107,33 @@ void Enemy::Draw(void)
 	if (!list.isDead_) 
 	{
 		MV1DrawModel(list.modelId_);
+		// 敵のHPバー
+		VECTOR worldPos = VAdd(list.pos_, VGet(0.0f, 50.0f, 0.0f)); // 敵の上の位置
+		worldPos.y += 100.0f;  // 頭の上
+		float screenX, screenY;
+		if (GetTransformPosition(&worldPos, &screenX, &screenY) == 0)
+		{
+			const int BAR_WIDTH = 40;
+			const int BAR_HEIGHT = 5;
+
+			// HPバー描画
+			float hpRatio = (float)list.hp_ / list.maxHp_;
+			if (hpRatio < 0.0f) hpRatio = 0.0f;
+			if (hpRatio > 1.0f) hpRatio = 1.0f;
+
+			int barX = static_cast<int>(screenX) - BAR_WIDTH / 2;
+			int barY = static_cast<int>(screenY) - BAR_HEIGHT / 2;
+
+			// 背景バー（グレー）
+			DrawBox(barX, barY, barX + BAR_WIDTH, barY + BAR_HEIGHT, GetColor(80, 80, 80), TRUE);
+			// HPバー（赤）
+			DrawBox(barX, barY, barX + (int)(BAR_WIDTH * hpRatio), barY + BAR_HEIGHT, GetColor(255, 0, 0), TRUE);
+			// デバッグ表示
+			DrawFormatString(0, 600, GetColor(255, 255, 255), "敵HP：%d / %d", list.hp_, list.maxHp_);
+			DrawFormatString(0, 630, GetColor(255, 255, 255), "敵攻撃力：%d", list.attackPower_);
+		}
+
 	}
-	DrawFormatString(100, 300, 0xffffff, "敵アニメーション番号：%d", animInfo_->animIndex_);
 }
 
 // 解放
@@ -285,9 +310,6 @@ void Enemy::SetDamage(int dp)
 
 void Enemy::DrawDebug(void)
 {
-	VECTOR worldPos = VAdd(list.pos_, VGet(0.0f, 50.0f, 0.0f)); // 敵の上の位置
-	worldPos.y += 100.0f;  // 頭の上
-	float screenX, screenY;
 
 	//DrawSphere3D(GetRightHandPosition(), 30, 32, 0xffffff, 0xffffff, false);
 	if (list.isBoss_) {
@@ -299,26 +321,5 @@ void Enemy::DrawDebug(void)
 		DrawSphere3D(rightattackCenter, 100.0f, 32, 0xffffff, 0xffffff, false);
 		DrawSphere3D(leftattackCenter, 100.0f, 32, 0xffffff, 0xffffff, false);
 
-	}
-	if (GetTransformPosition(&worldPos, &screenX, &screenY) == 0)
-	{
-		const int BAR_WIDTH = 40;
-		const int BAR_HEIGHT = 5;
-
-		// HPバー描画
-		float hpRatio = (float)list.hp_ / list.maxHp_;
-		if (hpRatio < 0.0f) hpRatio = 0.0f;
-		if (hpRatio > 1.0f) hpRatio = 1.0f;
-
-		int barX = static_cast<int>(screenX) - BAR_WIDTH / 2;
-		int barY = static_cast<int>(screenY) - BAR_HEIGHT / 2;
-
-		// 背景バー（グレー）
-		DrawBox(barX, barY, barX + BAR_WIDTH, barY + BAR_HEIGHT, GetColor(80, 80, 80), TRUE);
-		// HPバー（赤）
-		DrawBox(barX, barY, barX + (int)(BAR_WIDTH * hpRatio), barY + BAR_HEIGHT, GetColor(255, 0, 0), TRUE);
-		// デバッグ表示
-		DrawFormatString(0, 600, GetColor(255, 255, 255), "敵HP：%d / %d", list.hp_, list.maxHp_);
-		DrawFormatString(0, 630, GetColor(255, 255, 255), "敵攻撃力：%d", list.attackPower_);
 	}
 }

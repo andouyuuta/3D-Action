@@ -205,11 +205,11 @@ void Game::Draw(void)
 	collision_->Draw(enemymng_->GetEnemyPtrs());
 	// 文字の描画
 	//DrawFormatString(20, 20, GetColor(0xff, 0xff, 0xff), "ゲーム画面");
-	DrawFormatString(20, 80, GetColor(0xff, 0xff, 0xff), "Eキーでゲームオーバー");
-	DrawFormatString(20, 100, GetColor(0xff, 0xff, 0xff), "Cキーでゲームクリア");
+	DrawFormatString(20, Application::SCREEN_SIZE_Y-40, GetColor(0xff, 0xff, 0xff), "Eキーでゲームオーバー");
+	DrawFormatString(20, Application::SCREEN_SIZE_Y-20, GetColor(0xff, 0xff, 0xff), "Cキーでゲームクリア");
 
 	// カメラデバックなど
-	camera_->Draw();
+	//camera_->Draw();
 
 	if (isMenu_)
 	{

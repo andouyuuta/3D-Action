@@ -32,7 +32,6 @@ void Stage::Init(void)
 // XVˆ—
 void Stage::Update(void)
 {
-
 }
 
 // •`‰æ

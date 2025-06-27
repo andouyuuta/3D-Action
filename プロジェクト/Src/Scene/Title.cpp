@@ -41,7 +41,6 @@ void Title::Update(void)
 	InputManager& ins = InputManager::GetInstance();
 
 	// マウス座標の更新
-	
 	if (waitFrame_ > 0)
 	{
 		waitFrame_--;
@@ -66,7 +65,7 @@ void Title::Draw(void)
 	
 	// 文字の描画
 	DrawFormatString(20, 20, GetColor(0xff, 0xff, 0xff), "タイトル画面");
-	DrawFormatString(300, 300, GetColor(0xff, 0xff, 0xff), "左クリックでスタート");
+	DrawFormatString(300, 300, GetColor(0xff, 0xff, 0xff), "左クリックやスペース、Aボタンでスタート");
 }
 
 // 解放

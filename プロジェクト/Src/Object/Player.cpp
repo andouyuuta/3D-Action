@@ -265,31 +265,6 @@ void Player::Draw(void)
 	}
 	MV1DrawModel(list.modelId_);
 
-	// === デバッグ表示：プレイヤーのHPと攻撃力 ===
-	DrawFormatString(20, 500, GetColor(255, 255, 255), "プレイヤーHP：%d / %d", list.hp_, PlayerMaxHp_);
-	DrawFormatString(20, 530, GetColor(255, 255, 255), "プレイヤー攻撃力：%d", list.attackPower_);
-
-	// プレイヤー座標表示
-	if (list.isInvincible_) {
-		DrawFormatString(20, 300, GetColor(0xff, 0xff, 0xff), "無敵時間：%f", invincibleTime_);
-	}
-	DrawFormatString(20, 150, GetColor(0xff, 0xff, 0xff), "プレイヤーHP：%d", list.hp_);
-
-	// ゲームパッドのデバッグ情報表示（左スティック値）
-	InputManager& ins = InputManager::GetInstance();
-	InputManager::JOYPAD_IN_STATE pad = ins.GetJPadInputState(InputManager::JOYPAD_NO::PAD1);
-
-	// 左スティックの入力値（-1000～1000）
-	float lx = pad.AKeyLX / 1000.0f;
-	float ly = pad.AKeyLY / 1000.0f;
-	DrawFormatString(20, 400, 0xffffff, "dashCount：%f", list.dashCount_);
-	DrawFormatString(20, 580, GetColor(0, 255, 255), "Pad Left Stick X: %.2f", lx);
-	DrawFormatString(20, 600, GetColor(0, 255, 255), "Pad Left Stick Y: %.2f", ly);
-
-	// ボタン入力（Xボタン＝DOWN）も確認
-	bool isADown = ins.IsPadBtnNew(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN);
-	DrawFormatString(20, 620, GetColor(255, 255, 0), "Pad A Button (DOWN): %s", isADown ? "Pressed" : "Not Pressed");
-
 	// クリティカル表示
 	if (showCriticalText_)
 	{
@@ -323,6 +298,7 @@ void Player::Draw(void)
 		// ブレンドモード解除
 		SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
 	}
+	//DrawDebug();
 }
 
 // 解放
@@ -435,6 +411,34 @@ bool Player::AttackUpdate(void)
 	if(animation_->PlayerAttackCombo(2, animation_->Third_Attack, 3, 0.5f, 15.0f))return true;		// ２段階目で半分以上(0.5f)のときに攻撃ボタン押したらアニメーションスキップ(後ろから15.0f)して次のアニメーションへ
 
 	return list.isAttack_;		//攻撃中か
+}
+
+void Player::DrawDebug(void)
+{
+	// === デバッグ表示：プレイヤーのHPと攻撃力 ===
+	DrawFormatString(20, 500, GetColor(255, 255, 255), "プレイヤーHP：%d / %d", list.hp_, PlayerMaxHp_);
+	DrawFormatString(20, 530, GetColor(255, 255, 255), "プレイヤー攻撃力：%d", list.attackPower_);
+
+	// プレイヤー座標表示
+	if (list.isInvincible_) {
+		DrawFormatString(20, 300, GetColor(0xff, 0xff, 0xff), "無敵時間：%f", invincibleTime_);
+	}
+	DrawFormatString(20, 150, GetColor(0xff, 0xff, 0xff), "プレイヤーHP：%d", list.hp_);
+
+	// ゲームパッドのデバッグ情報表示（左スティック値）
+	InputManager& ins = InputManager::GetInstance();
+	InputManager::JOYPAD_IN_STATE pad = ins.GetJPadInputState(InputManager::JOYPAD_NO::PAD1);
+
+	// 左スティックの入力値（-1000～1000）
+	float lx = pad.AKeyLX / 1000.0f;
+	float ly = pad.AKeyLY / 1000.0f;
+	DrawFormatString(20, 400, 0xffffff, "dashCount：%f", list.dashCount_);
+	DrawFormatString(20, 580, GetColor(0, 255, 255), "Pad Left Stick X: %.2f", lx);
+	DrawFormatString(20, 600, GetColor(0, 255, 255), "Pad Left Stick Y: %.2f", ly);
+
+	// ボタン入力（Xボタン＝DOWN）も確認
+	bool isADown = ins.IsPadBtnNew(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN);
+	DrawFormatString(20, 620, GetColor(255, 255, 0), "Pad A Button (DOWN): %s", isADown ? "Pressed" : "Not Pressed");
 }
 
 // プレイヤーがダメージを受けたとき

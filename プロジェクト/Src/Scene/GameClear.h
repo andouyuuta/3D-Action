@@ -16,7 +16,7 @@ public:
 	void Release(void) override;	// ‰ğ•ú
 
 private:
-	// ‰æ‘œ
+	int waitFrame_;
 
 	// ƒJ[ƒ\ƒ‹‚ª”ÍˆÍ“à‚É‚ ‚é‚©‚Ç‚¤‚©
 	bool mouseFlg_;

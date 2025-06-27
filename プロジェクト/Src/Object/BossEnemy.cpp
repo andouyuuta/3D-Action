@@ -122,29 +122,34 @@ void BossEnemy::Draw(void)
 {
     // ボスの描画ロジックが特別でなければそのままでOK
     Enemy::Draw();
-    //VECTOR pos = VAdd(list.pos_, VGet(0.0f, 150.0f, 0.0f));
-    //DrawSphere3D(pos, 100.0f, 32, 0xffffff, 0xffffff, false);
-    //if (list.isAttack_)
-    //{
-    //    VECTOR forward = VNorm(VGet(sinf(list.rot_.y), 0.0f, cosf(list.rot_.y)));
-    //    VECTOR attackCenter = VAdd(GetRightHandPosition(), VScale(forward, 50.0f));
-    //    DrawSphere3D(attackCenter, 120.0f, 32, 0xffffff, 0xffffff, false);
-    //}
-    //if (isJumpAttack_)
-    //{
-    //    //アニメーションの現在位置
-    //    float currenttime = animation_->GetEnemyInfo().currentAnimTime_;
-    //    float totaltime = animation_->GetEnemyInfo().animTotalTime_;
-    //    float animratio = currenttime / totaltime;
-    //    if (animratio >= 0.3f && animratio <= 0.6f) {
+    //DrawDebug();
+}
 
-    //        // 敵の右手の位置を取得して球体をセット
-    //        VECTOR forward = VNorm(VGet(-sinf(GetRotY()), 0.0f, -cosf(GetRotY())));
-    //        VECTOR rightattackCenter = VAdd(GetRightHandPosition(), VScale(forward, 50.0f));
-    //        VECTOR leftattackCenter = VAdd(GetLeftHandPosition(), VScale(forward, 50.0f));
+void BossEnemy::DrawDebug(void)
+{
+    VECTOR pos = VAdd(list.pos_, VGet(0.0f, 150.0f, 0.0f));
+    DrawSphere3D(pos, 100.0f, 32, 0xffffff, 0xffffff, false);
+    if (list.isAttack_)
+    {
+        VECTOR forward = VNorm(VGet(sinf(list.rot_.y), 0.0f, cosf(list.rot_.y)));
+        VECTOR attackCenter = VAdd(GetRightHandPosition(), VScale(forward, 50.0f));
+        DrawSphere3D(attackCenter, 120.0f, 32, 0xffffff, 0xffffff, false);
+    }
+    if (isJumpAttack_)
+    {
+        //アニメーションの現在位置
+        float currenttime = animation_->GetEnemyInfo().currentAnimTime_;
+        float totaltime = animation_->GetEnemyInfo().animTotalTime_;
+        float animratio = currenttime / totaltime;
+        if (animratio >= 0.3f && animratio <= 0.6f) {
 
-    //        DrawSphere3D(rightattackCenter, 100.0f, 32, 0xffffff, 0xffffff, false);
-    //        DrawSphere3D(leftattackCenter, 100.0f, 32, 0xffffff, 0xffffff, false);
-    //    }
-    //}
+            // 敵の右手の位置を取得して球体をセット
+            VECTOR forward = VNorm(VGet(-sinf(GetRotY()), 0.0f, -cosf(GetRotY())));
+            VECTOR rightattackCenter = VAdd(GetRightHandPosition(), VScale(forward, 50.0f));
+            VECTOR leftattackCenter = VAdd(GetLeftHandPosition(), VScale(forward, 50.0f));
+
+            DrawSphere3D(rightattackCenter, 100.0f, 32, 0xffffff, 0xffffff, false);
+            DrawSphere3D(leftattackCenter, 100.0f, 32, 0xffffff, 0xffffff, false);
+        }
+    }
 }

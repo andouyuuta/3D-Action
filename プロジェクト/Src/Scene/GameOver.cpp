@@ -10,7 +10,7 @@
 // コンストラクタ
 GameOver::GameOver(void) : SceneBase()
 {
-
+	waitFrame_ = 0;
 }
 
 // デストラクタ
@@ -24,6 +24,8 @@ void GameOver::Init(void)
 	// 画像の読み込み
 	hightLight_ = LoadGraph("Data/Image/hightLight.png");
 
+	waitFrame_ = 10;
+
 	gameFlg_ = false;
 	titleFlg_ = false;
 }
@@ -35,37 +37,18 @@ void GameOver::Update(void)
 	InputManager& ins = InputManager::GetInstance();
 
 	// マウス座標の更新
-	mousePos_ = ins.GetMousePos();
-
-	if (mousePos_.x >= 600 && mousePos_.x <= 760 && mousePos_.y >= 300 && mousePos_.y <= 316)
+	if (waitFrame_ > 0)
 	{
-		gameFlg_ = true;
-		if (ins.IsTrgMouseLeft()) 
-		{
-			SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::GAME);
-		}
-	}
-	else
-	{
-		gameFlg_ = false;
+		waitFrame_--;
+		return;
 	}
 
-	if (ins.IsPadBtnTrgDown(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN) || ins.IsTrgDown(KEY_INPUT_SPACE))
+	GetMousePoint(&mousePos_.x, &mousePos_.y);
+
+	if (ins.IsPadBtnTrgDown(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN) || ins.IsTrgDown(KEY_INPUT_SPACE) ||
+		ins.IsTrgMouseLeft())
 	{
-		SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::TITLE);
-	}
-	
-	if (mousePos_.x >= 600 && mousePos_.x <= 760 && mousePos_.y >= 330 && mousePos_.y <= 346)
-	{
-		titleFlg_ = true;
-		if (ins.IsTrgMouseLeft())
-		{
-			SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::TITLE);
-		}
-	}
-	else
-	{
-		titleFlg_ = false;
+		SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::GAME);
 	}
 }
 
@@ -85,10 +68,7 @@ void GameOver::Draw(void)
 
 	// 文字の描画
 	DrawFormatString(20, 20, GetColor(0xff, 0xff, 0xff), "ゲームオーバー画面");
-	DrawFormatString(300, 300, GetColor(0xff, 0xff, 0xff), "左クリックで決定");
-
-	DrawFormatString(600, 300, GetColor(0xff, 0x00, 0x00), "リトライ");
-	DrawFormatString(600, 330, GetColor(0xff, 0x00, 0x00), "タイトルに戻る");
+	DrawFormatString(300, 300, GetColor(0xff, 0xff, 0xff), "左クリックやスペース、Aボタンでタイトルに");
 }
 
 // 解放

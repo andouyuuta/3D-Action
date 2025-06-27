@@ -37,7 +37,7 @@ public:
 
 private:
     void InitBossStats(void);  // ボス固有初期設定
-
+    void DrawDebug(void);       // デバッグ表示
     // === 状態変数 ===
     bool isSwipe;
     bool isJumpAttack_;
