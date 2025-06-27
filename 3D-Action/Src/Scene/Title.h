@@ -4,6 +4,7 @@
 #include "SceneBase.h"
 #include "../Common/Vector2.h"
 
+class Camera;
 
 class Title : public SceneBase
 {
@@ -38,10 +39,12 @@ public:
 private:
 	// 画像
 	int titleImg_;
+	int startImg_;
 
-	// カーソルが範囲内にあるかどうか
-	bool mouseFlg_;
+	int waitFrame_;
 
 	// マウス座標
 	Vector2 mousePos_;
+
+	Camera* camera_;
 };

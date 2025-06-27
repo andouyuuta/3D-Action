@@ -11,10 +11,15 @@ class Stage;
 class Collision;
 class Aicon;
 class Trail3D;
+class AnimationManager;
+class HpBar;
+class Buff;
 
 class Game : public SceneBase
 {
 public:
+	static constexpr int OPTION_COUNT = 2;
+
 	// コンストラクタ
 	Game(void);
 
@@ -25,8 +30,22 @@ public:
 	void Update(void) override;		// 更新	
 	void Draw(void) override;		// 描画
 	void Release(void) override;	// 解放
-private:
 
+	// カメラの取得
+	Camera* GetCamera(void) const;
+
+private:
+	int menuimg_;
+	int menuSizeX_;
+	int menuSizeY_;
+	bool isMenu_;
+
+	int centerX_;
+	int centerY_;
+
+	int selectindex_;
+
+	// ポインター
 	// カメラ
 	Camera* camera_;
 
@@ -47,4 +66,13 @@ private:
 
 	//当たり判定
 	Collision* collision_;
+
+	// アニメーション
+	AnimationManager* animation_;
+
+	// HPバー
+	HpBar* hpbar_;
+
+	// バフ
+	Buff* buff_;
 };

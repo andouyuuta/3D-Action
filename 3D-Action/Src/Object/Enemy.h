@@ -1,23 +1,16 @@
 #pragma once
 #include <DxLib.h>
+#include "../Manager/AnimationManager.h"
+
+class Player;
 
 class Enemy
 {
 public:
-	// 敵の移動状態管理用
-	enum EnemyAnim {
-		ANIM_IDLE = 0,
-		ANIM_WALK,
-		ANIM_RUN,
-		ANIM_ATTACK,
-		ANIM_DEAD,
-		ANIM_JUMP_ATTACK,
-		ANIM_SWIP,
-	};
-
+	static constexpr float WALK_START = 0.05f;	// 動き始める判定
+	static constexpr float WALK_STOP = 0.02f;	// 止まった判定
 	// 敵の最大HP
 	int ENEMY_MAX_HP = 300;
-
 	// 敵の最大攻撃力
 	int AttackPower_ = 40;
 
@@ -43,13 +36,6 @@ public:
 		VECTOR moveVecRad_;		// 移動ベクトルが生成する角度
 		VECTOR localRot_;		// 調整用初期角度
 
-		//アニメーション
-		int animIndex_;			// アニメーションの種類
-		int  animAttachNo_;		// 設定するアニメーションの番号
-		float animTotalTime_;	// アニメーションの総再生時間
-		float currentAnimTime_; // 直前のアニメーションの時間
-		bool isAnimLock_;		// アニメーションロック
-
 		bool isDead_;			// 死んでいるか
 		bool isDraw_;			// 表示するか
 		bool isHitboxActive_;	// 当たり判定が有効しているか
@@ -67,8 +53,8 @@ public:
 	Enemy(void);				// コンストラクタ
 	virtual ~Enemy(void);		// デストラクタ
 
-	virtual void Init(int org, int hp, int attack);	// 初期化
-	virtual void Update();		// 更新
+	virtual void Init(int org, int hp, int attack, Player* player, AnimationManager* anim, AnimationManager::AnimationInfo* animinfo);	// 初期化
+	virtual void Update(void);		// 更新
 	virtual void Draw(void);	// 描画
 	virtual void Release(void); // 解放
 
@@ -76,7 +62,7 @@ public:
 	void UpdateMove(void);
 
 	// 死亡フラグ
-	bool IsDead()const;
+	bool IsDead(void)const;
 
 	// 敵の現在位置の取得する（外部から読み取り専用）
 	[[nodiscard]] int GetModel(void)const { return list.modelId_; }
@@ -86,27 +72,31 @@ public:
 	[[nodiscard]] VECTOR GetRightHandPosition(void);
 	[[nodiscard]] VECTOR GetLeftHandPosition(void);
 	[[nodiscard]] bool GetAttackFlg(void) { return list.isAttack_; }
-	struct Info GetInfo(void) { return list; }
-	bool GetIsBoss(void)const { return list.isBoss_; }
-	int GetAttackPower(void)const { return list.attackPower_; }	// 敵の攻撃力
+	//struct Info GetInfo(void) { return list; }
+	[[nodiscard]] bool GetIsBoss(void)const { return list.isBoss_; }
+	[[nodiscard]] int GetAttackPower(void)const { return list.attackPower_; }	// 敵の攻撃力
+	[[nodiscard]] bool GetIsAssign(void) { return list.isAssign_; }
 
 	// セッター関数
 	void SetEnemyPos(const VECTOR& pos);		// 敵の座標の設定
 	void SetDamage(int dp);						// 敵のHPを減らす
 	void SetIsBoss(bool boss) { list.isBoss_ = boss; }
+	void SetIsAttack(bool flg) { list.isAttack_ = flg; }
 
 	void SetIsAssign(bool flg) { list.isAssign_ = flg; }
-	bool GetIsAssign(void) { return list.isAssign_; }
+
+	AnimationManager::AnimationInfo* GetAnimInfo() { return animInfo_; }
+	void SetAnimInfo(AnimationManager::AnimationInfo* info) { animInfo_ = info; }
 protected:
+	void DrawDebug(void);
+
 	// 構造体を格納する変数
 	struct Info list;
 
 	// 静的インスタンス
 	static Enemy* instance_;
 
-	virtual void PlayAnimation(void);		//アニメーション再生
-	//void DebugAnimation(void);		//数字キーでアニメーション切り替え
-	virtual void ChangeAnimation(int idx, bool lock = false);	//アニメーション切り替え
-
+	Player* player_;
+	AnimationManager* animation_;
+	AnimationManager::AnimationInfo* animInfo_;
 };
-

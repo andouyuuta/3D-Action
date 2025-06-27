@@ -19,6 +19,7 @@ public:
 	static const std::string PATH_IMAGE;
 	static const std::string PATH_AICON;
 	static const std::string PATH_SOUND;
+	static const std::string PATH_BUFF;
 
 	// 明示的にインスタンスを生成する
 	static void CreateInstance(void);

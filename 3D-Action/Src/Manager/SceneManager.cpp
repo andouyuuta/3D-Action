@@ -34,10 +34,6 @@ void SceneManager::Init(void)
 	fader_ = new Fader();
 	fader_->Init();
 
-	//カメラ初期化
-	camera_ = new Camera();
-	camera_->Init();
-
 	isSceneChanging_ = false;
 
 	// デルタタイム
@@ -97,17 +93,6 @@ void SceneManager::Update(void)
 	{
 		scene_->Update();
 	}
-
-	if (sceneId_ == SCENE_ID::GAME) 
-	{
-		SetMouseDispFlag(false);
-		camera_->GameUpdate();
-	}
-	else
-	{
-		SetMouseDispFlag(true);
-		camera_->Update();
-	}
 }
 
 void SceneManager::Draw(void)
@@ -120,14 +105,8 @@ void SceneManager::Draw(void)
 	// 画面を初期化
 	ClearDrawScreen();
 
-	//カメラ設定
-	camera_->SetBeforeDraw();
-
 	// 描画
 	scene_->Draw();
-
-	//カメラデバック等
-	camera_->Draw();
 
 	// 暗転・明転
 	fader_->Draw();
@@ -166,11 +145,6 @@ float SceneManager::GetDeltaTime(void) const
 {
 	//return 1.0f / 60.0f;
 	return deltaTime_;
-}
-
-Camera* SceneManager::GetCamera(void) const
-{
-	return camera_;
 }
 
 SceneManager::SceneManager(void)
@@ -220,15 +194,12 @@ void SceneManager::DoChangeScene(SCENE_ID sceneId)
 		break;
 	case SCENE_ID::GAME:
 		scene_ = new Game();
-		camera_->ReSet();
 		break;
 	case SCENE_ID::GAMEOVER:
 		scene_ = new GameOver();
-		camera_->ReSet();
 		break;
 	case SCENE_ID::GAMECLEAR:
 		scene_ = new GameClear();
-		camera_->ReSet();
 		break;
 	}
 

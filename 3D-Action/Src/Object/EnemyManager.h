@@ -4,37 +4,50 @@
 #include <memory>
 #include <unordered_map>
 #include <string>
+#include "../Manager/AnimationManager.h"
 
+class Player;
 class Enemy;
 class BossEnemy;
+class AnimationManager;
+class Buff;
 
 class EnemyManager
 {
 public:
 	static constexpr int ENEMY_COUNT = 1;				// 敵の数
-	
 
 	EnemyManager(void);	// コンストラクタ
 	~EnemyManager(void); // デストラクタ
 
-	void Init();    // 敵の初期化
-	void Update();  // 敵の更新
-	void Draw();    // 敵の描画
-	void Release(); // 解放処理
+	void Init(Player* player,AnimationManager* anim,const AnimationManager::AnimationInfo& animinfo, Buff* buff);    // 敵の初期化
+	void Update(void);  // 敵の更新
+	void Draw(void);    // 敵の描画
+	void Release(void); // 解放処理
 
-
-	// プレイヤー側で敵のリストを取得するための関数
-	std::vector<Enemy*> GetEnemyPtrs() const;
+	// ゲッター関数
+	[[nodiscard]]std::vector<Enemy*> GetEnemyPtrs(void) const;
 	[[nodiscard]] int GetEnemyCount(void) { return ENEMY_COUNT; }
-	[[nodiscard]] int GetAliveEnemyCount()const;
-	[[nodiscard]] bool GetBossDead()const { return bossDead_; }
+	[[nodiscard]] int GetAliveEnemyCount(void)const;
+	[[nodiscard]] bool GetBossDead(void)const { return bossDead_; }
 	[[nodiscard]] void SetBossDead(bool dead) { bossDead_ = dead; }
 
 	int currentPhase_ = 0;						// 現在のフェーズ（1~4）
 	const int MAX_PHASE = 3;					// フェーズの最大数
 	bool isWaitingForSkillSelect_ = false;		// スキルの選択も待ち時間
 
+	bool GetBossSpawn(void) { return bossSpawned_; }
+
+	// 状態取得関数
+	bool IsWaitingForSkillSelect() const;
+
+	void SetIsWaitingSlect(bool select) { isWaitingForSkillSelect_ = select; }
+	void ShowSkillSelect(void);		// スキル選択
 private:
+
+	// ポインター
+	Buff* buff_;
+
 	std::vector<Enemy*> result;
 	std::vector<std::unique_ptr<Enemy>> enemies_;
 	std::unordered_map<std::string, int> enemyModels;	//モデルを配列で管理
@@ -44,8 +57,13 @@ private:
 	bool bossDead_;     // ボスの死亡
 	bool isPhaseClear_;	// フェーズのフラグ
 
-	void SpawnBoss();
+	void SpawnBoss(void);
 
-	void SpawnPhaseEnemies();	// スポーンフェーズの敵の処理
-	void ShowSkillSelect();		// スキル
+	void SpawnPhaseEnemies(void);	// スポーンフェーズの敵の処理
+
+	Player* player_;
+	AnimationManager* animation_;
+	AnimationManager::AnimationInfo animInfo_;
+
+	
 };

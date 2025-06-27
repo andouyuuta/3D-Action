@@ -42,6 +42,10 @@ public:
 		DOWN,
 		R_TRIGGER,
 		L_TRIGGER,
+		L_BUTTON,
+		R_BUTTON,
+		VIEW,
+		MENU,
 		MAX
 	};
 

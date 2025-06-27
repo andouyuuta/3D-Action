@@ -1,9 +1,11 @@
 #include "EnemyManager.h"
 #include "BossEnemy.h"
-#include "../Application.h"
 #include "Player.h"
-#include "../Manager/SceneManager.h"
 #include "Enemy.h"
+#include "../Application.h"
+#include "../Manager/RandomManager.h"
+#include "../Manager/SceneManager.h"
+#include "../UI/Buff.h"
 
 // コンストラクタ
 EnemyManager::EnemyManager(void)
@@ -12,6 +14,11 @@ EnemyManager::EnemyManager(void)
 	bossSpawned_ = false;	// ボス出現
 	bossDead_ = false;      // ボスの死亡フラグ
 	isPhaseClear_ = false;
+
+	player_ = nullptr;
+	buff_ = nullptr;
+	animation_ = nullptr;
+	animInfo_ = {};
 }
 
 // デストラクタ
@@ -20,8 +27,13 @@ EnemyManager::~EnemyManager(void)
 }
 
 // 初期化
-void EnemyManager::Init(void)
+void EnemyManager::Init(Player* player, AnimationManager* anim,const AnimationManager::AnimationInfo& animinfo, Buff* buff)
 {
+	player_ = player;
+	animation_ = anim;
+	animInfo_ = animinfo;
+	buff_ = buff;
+
 	enemies_.clear();
 
 	// 敵のモデルの読み込み
@@ -45,14 +57,7 @@ void EnemyManager::Init(void)
 
 // 更新
 void EnemyManager::Update()
-{
-	// スキル選択中は処理を止める
-	if (isWaitingForSkillSelect_)
-	{
-		ShowSkillSelect();  // キー入力による選択を処理
-		return;
-	}
-		
+{		
 	//複数の敵の更新
 	for (auto it = enemies_.begin(); it != enemies_.end(); )
 	{
@@ -86,7 +91,7 @@ void EnemyManager::Update()
 	{
 		isPhaseClear_ = true;		// フェーズのフラグ
 
-		Player::GetInstance().RecoverHp();  // プレイヤーHP全快
+		player_->FullRecoveryHp();  // プレイヤーHP全快
 
 		// 現在のフェーズが最大フェーズがどうか
 		if (currentPhase_ < MAX_PHASE || currentPhase_ == MAX_PHASE)
@@ -98,7 +103,6 @@ void EnemyManager::Update()
 		{
 			SpawnBoss();
 		}
-		
 	}
 }
 
@@ -112,15 +116,6 @@ void EnemyManager::Draw(void)
 		{
 			if (enemy) enemy->Draw();
 		}
-	}
-	// スキル選択時だけメッセージ表示
-	if (isWaitingForSkillSelect_)
-	{
-		// 左上あたりに表示
-		DrawFormatString(0, 200, GetColor(255, 255, 255), "▼ スキルを選択してください ▼");
-		DrawFormatString(0, 240, GetColor(255, 255, 0), "1: 攻撃力+30 ＆ HP最大値+30");
-		DrawFormatString(0, 280, GetColor(0, 255, 0), "2: 攻撃力+40");
-		DrawFormatString(0, 320, GetColor(0, 255, 255), "3: 攻撃力＆HP最大値(-50or+100)");
 	}
 }
 
@@ -168,13 +163,21 @@ void EnemyManager::SpawnBoss()
 	bossSpawned_ = true;
 	auto boss = std::make_unique<BossEnemy>();
 
-	auto enemy = std::make_unique<Enemy>();
+	// アニメーション情報を map に登録し、その参照を取得
+	animation_->enemyAnimInfos_.insert({ boss.get(), {} });
+	AnimationManager::AnimationInfo& animInfo = animation_->enemyAnimInfos_[boss.get()];
 
-	int baseHp = enemy->ENEMY_MAX_HP;        // 基本HP
-	int baseAttack = 350;              // 基本攻撃力
+	animInfo.animIndex_ = AnimationManager::EnemyAnim::ANIM_IDLE;
+	animInfo.animAttachNo_ = MV1AttachAnim(enemyModels["boss"], animInfo.animIndex_);
+	animInfo.animTotalTime_ = MV1GetAttachAnimTotalTime(enemyModels["boss"], animInfo.animAttachNo_);
+	animInfo.currentAnimTime_ = 0.0f;
+	animInfo.isAnimLock_ = false;
+	int baseHp = 300;
+	int baseAttack = 20;
 
-	boss->Init(enemyModels["boss"], baseHp, baseAttack);
+	boss->Init(enemyModels["boss"], 1500, 40, player_, animation_, &animInfo);
 	boss->SetEnemyPos({ 0.0f, 0.0f, 0.0f });
+
 	enemies_.push_back(std::move(boss));
 }
 
@@ -184,22 +187,39 @@ void EnemyManager::SpawnPhaseEnemies()
 	enemies_.clear();
 	int enemyCount = ENEMY_COUNT + (currentPhase_ - 1) * 5; // フェーズごとに5体ずつ増加
 
-	auto enemy = std::make_unique<Enemy>();
-
 	// === フェーズに応じた強化 ===
 	int hpBoost = (currentPhase_ - 1) * 20;
 	int atkBoost = (currentPhase_ - 1) * 5;
-	int enemyHp = enemy->ENEMY_MAX_HP;        // 基本HP（例えば10）
+	int enemyHp = 300;        // 基本HP（例えば10）
 	int enemyAttack = 50;              // 基本攻撃力（仮）
 
 	//複数の敵の初期化
 	for (int i = 0; i < enemyCount; i++)
 	{
 		auto enemy = std::make_unique<Enemy>();
-		enemy->Init(enemyModels["normal"],enemyHp + hpBoost, enemyAttack + atkBoost);
 
-		// ランダム座標に配置
-		VECTOR pos = { GetRand(500) - 250.0f,0.0f,GetRand(500) - 250.0f };
+		AnimationManager::AnimationInfo animInfo{};
+		animInfo.animIndex_ = AnimationManager::EnemyAnim::ANIM_IDLE;
+		animInfo.animAttachNo_ = MV1AttachAnim(enemyModels["normal"], animInfo.animIndex_);
+		animInfo.animTotalTime_ = MV1GetAttachAnimTotalTime(enemyModels["normal"], animInfo.animAttachNo_);
+		animInfo.currentAnimTime_ = 0.0f;
+		animInfo.isAnimLock_ = false;
+
+		// AnimationManagerに登録
+		animation_->enemyAnimInfos_[enemy.get()] = animInfo;
+
+		// アニメーション情報のポインタを取得
+		AnimationManager::AnimationInfo* animPtr = &animation_->enemyAnimInfos_[enemy.get()];
+
+		// 敵にAnimationInfoのポインタを渡す（Init の引数にポインタを渡す）
+		enemy->Init(enemyModels["normal"],
+			enemyHp + hpBoost,
+			enemyAttack + atkBoost,
+			player_,
+			animation_,
+			animPtr);
+		// 座標ランダム配置
+		VECTOR pos = { GetRand(500) - 250.0f, 0.0f, GetRand(500) - 250.0f };
 		enemy->SetEnemyPos(pos);
 
 		enemies_.push_back(std::move(enemy));
@@ -209,46 +229,36 @@ void EnemyManager::SpawnPhaseEnemies()
 // スキル選択
 void EnemyManager::ShowSkillSelect()
 {
-	if (CheckHitKey(KEY_INPUT_1))
-	{
-		//　攻撃力とHPの上限アップ
-		Player::GetInstance().AddAttack(30);
-		Player::GetInstance().AddMaxHp(30);
-	}
-	else if (CheckHitKey(KEY_INPUT_2)) 
-	{
-		// 攻撃力のみUP
-		Player::GetInstance().AddAttack(40);
-	}
-	else if (CheckHitKey(KEY_INPUT_3))
-	{
-		// 攻撃力とHPのアップ処理(確率)
-		int boost = GetRand(1) == 0 ? -50 : 80 ;
-		Player::GetInstance().AddAttack(boost);
-		Player::GetInstance().AddMaxHp(boost);
-	}
-	else
-	{
-		// まだ選んでいない
-		return;
-	}
+	buff_->Update();
 
-	// 共通処理
-	isWaitingForSkillSelect_ = false;		// スキルの選択されたためフラグを折る
-	isPhaseClear_ = false;					//フェーズのフラグを元に戻す
-
-	// フェーズが最終だった場合ボスを出現させる
-	if (currentPhase_ >= MAX_PHASE)
+	if (buff_->IsSelected())
 	{
-		if (!bossSpawned_)
+		// スキル選択完了後の初期化
+		buff_->Reset();
+
+		// 共通処理
+		isWaitingForSkillSelect_ = false;		// スキルの選択されたためフラグを折る
+		isPhaseClear_ = false;					// フェーズのフラグを元に戻す
+
+		// フェーズが最終だった場合ボスを出現させる
+		if (currentPhase_ >= MAX_PHASE)
 		{
-			SpawnBoss();
+			if (!bossSpawned_)
+			{
+				SpawnBoss();
+			}
+		}
+		else
+		{
+			currentPhase_++;						// 現在のフェーズに足す
+			deadCount_ = 0;							// 死亡数の初期化
+			SpawnPhaseEnemies();					// スポーンフェーズの敵の処理
 		}
 	}
-	else
-	{
-		currentPhase_++;						// 現在のフェーズに足す
-		deadCount_ = 0;							// 死亡数の初期化
-		SpawnPhaseEnemies();					// スポーンフェーズの敵の処理
-	}
+}
+
+// 状態取得関数
+bool EnemyManager::IsWaitingForSkillSelect() const
+{
+	return isWaitingForSkillSelect_;
 }

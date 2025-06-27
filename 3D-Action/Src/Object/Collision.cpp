@@ -3,18 +3,30 @@
 #include "Enemy.h"
 #include "Sword.h"
 #include "BossEnemy.h"
+#include "Stage.h"
+#include "../Manager/RandomManager.h"
+#include "../Manager/AnimationManager.h"
 
 Collision::Collision()
 {
     stageModel_ = -1;
     attackRadius_ = 0.0f;
     game_ = nullptr;
+    player_ = nullptr;
+    stage_ = nullptr;
+    anim_ = nullptr;
+    sword_ = nullptr;
 }
+
 Collision::~Collision() {}
 
-void Collision::Init()
+void Collision::Init(Player* player,Sword* sword,Stage* stage,AnimationManager* anim)
 {
-    stageModel_ = Stage::GetInstance().GetStageModel();
+    player_ = player;
+    sword_ = sword;
+    stage_ = stage;
+    stageModel_ = stage_->GetStageModel();
+    anim_ = anim;
 }
 
 void Collision::Update(const std::vector<Enemy*>& enemies)
@@ -28,32 +40,23 @@ void Collision::Update(const std::vector<Enemy*>& enemies)
 
 void Collision::Draw(const std::vector<Enemy*>& enemies)
 {
-    DrawDebag();
-    //for (auto& enemy : enemies)
-    //{
-    //    // 敵の右手の位置を取得して球体をセット
-    //    VECTOR forward = VNorm(VGet(sinf(enemy->GetRotY()), 0.0f, cosf(enemy->GetRotY())));
-    //    VECTOR attackCenter = VAdd(enemy->GetRightHandPosition(), VScale(forward, 50.0f));
-    //    DrawSphere3D(attackCenter, 20.0f, 32, 0xffffff, 0xffffff, false);
-    //    VECTOR pos = VAdd(enemy->GetPosition(), VGet(0.0f, 100.0f, 0.0f));
-    //    DrawSphere3D(pos, 100.0f, 32, 0xffffff, 0xffffff, false);
-    //}
+    //DrawDebag();
 }
 
-void Collision::Release() {}
+void Collision::Release(void) {}
 
 // プレイヤーとステージの衝突
 void Collision::PlayerToStageCollision()
 {
     // プレイヤーの衝突位置(少し上に)
-    VECTOR playerpos = VAdd(Player::GetInstance().GetPlayerPos(), VGet(0.0f, 100.0f, 0.0f));
+    VECTOR playerpos = VAdd(player_->GetPlayerPos(), VGet(0.0f, 100.0f, 0.0f));
     auto result = MV1CollCheck_Sphere(stageModel_, -1, playerpos, 50.0f);
 
     // ヒットしたら押し戻す
     if (result.HitNum >= 1)
     {
         VECTOR pushBack = VScale(result.Dim[0].Normal, 15.0f);
-        Player::GetInstance().SetPlayerPos(VAdd(Player::GetInstance().GetPlayerPos(), pushBack));
+        player_->SetPlayerPos(VAdd(player_->GetPlayerPos(), pushBack));
     }
     MV1CollResultPolyDimTerminate(result);
 }
@@ -90,7 +93,6 @@ void Collision::EnemyToStageCollision(const std::vector<Enemy*>& enemies)
             }
             MV1CollResultPolyDimTerminate(result);
         }
-        
     }
 }
 
@@ -98,14 +100,14 @@ void Collision::EnemyToStageCollision(const std::vector<Enemy*>& enemies)
 void Collision::PlayerToEnemyCollision(const std::vector<Enemy*>& enemies)
 {
     // プレイヤーの位置取得（当たり判定位置を少し上に）
-    VECTOR checkPos = VAdd(Player::GetInstance().GetPlayerPos(), VGet(0.0f, 100.0f, 0.0f));
+    VECTOR checkPos = VAdd(player_->GetPlayerPos(), VGet(0.0f, 100.0f, 0.0f));
 
     for (auto& enemy : enemies)
     {
         if (!enemy || enemy->IsDead()) continue; // 無効な敵・死亡した敵はスキップ
 
         // ===== 1. プレイヤーと敵の物理押し戻し処理 =====
-        VECTOR dist = VSub(Player::GetInstance().GetPlayerPos(), enemy->GetPosition());
+        VECTOR dist = VSub(player_->GetPlayerPos(), enemy->GetPosition());
         dist.y = 0; // 高さ無視でXZ平面距離を見る
 
         if (VSize(dist) <= CHECK_RADIUS)
@@ -114,18 +116,20 @@ void Collision::PlayerToEnemyCollision(const std::vector<Enemy*>& enemies)
 
             if (result.HitNum >= 1)
             {
-                VECTOR pushBack = VScale(result.Dim[0].Normal, 7.0f); // 押し戻しベクトル
-                Player::GetInstance().SetPlayerPos(VAdd(Player::GetInstance().GetPlayerPos(), pushBack));
+                VECTOR pushDir = VNorm(dist);
+                float overlap = CHECK_RADIUS - VSize(dist);
+                float pushPower = Clamp(overlap * 0.2f, 0.0f, 5.0f); // 押し戻しベクトル
+                VECTOR pushVec = VScale(pushDir, pushPower);
+                player_->SetPlayerPos(VAdd(player_->GetPlayerPos(), VScale(pushVec, 0.5f)));
+                enemy->SetEnemyPos(VSub(enemy->GetPosition(), VScale(pushVec, 0.5f)));
             }
             MV1CollResultPolyDimTerminate(result);
         }
-
         // ===== 2. 通常攻撃の当たり判定（アニメーション中のみ） =====
         if (enemy->GetAttackFlg() && VSize(dist) <= CHECK_RADIUS)
         {
-            float currentTime_ = enemy->GetInfo().currentAnimTime_;
-            float totalTime_ = enemy->GetInfo().animTotalTime_;
-            float animRatio_ = currentTime_ / totalTime_; // アニメーション進行度（0.0〜1.0）
+            float currentTime_ = enemy->GetAnimInfo()->currentAnimTime_;
+            float totalTime_ = enemy->GetAnimInfo()->animTotalTime_;            float animRatio_ = currentTime_ / totalTime_; // アニメーション進行度（0.0〜1.0）
 
             // 敵のスイング時にのみ当たり判定をつける
             if (animRatio_ >= 0.3f && animRatio_ <= 0.5f) // 攻撃判定タイミング
@@ -135,14 +139,23 @@ void Collision::PlayerToEnemyCollision(const std::vector<Enemy*>& enemies)
                 VECTOR attackCenter = VAdd(enemy->GetRightHandPosition(), VScale(forward, 50.0f));
 
                 // ボスの場合は攻撃範囲を広げる
-                float radius = (dynamic_cast<BossEnemy*>(enemy)) ? 200.0f : 30.0f;
+                float radius = (dynamic_cast<BossEnemy*>(enemy)) ? 200.0f : 50.0f;
 
                 // プレイヤーとの当たり判定（球体）
-                auto result = MV1CollCheck_Sphere(Player::GetInstance().GetPlayerModel(), -1, attackCenter, radius);
+                auto result = MV1CollCheck_Sphere(player_->GetPlayerModel(), -1, attackCenter, radius);
                 if (result.HitNum > 0)
                 {
-                        int damage = enemy->GetAttackPower();
-                        Player::GetInstance().TakeDamage(damage); // ダメージ処理（内部で多重防止）
+                    int damage = enemy->GetAttackPower();
+                    if (anim_->GetPlayerInfo().animIndex_ == anim_->Crouch_Idle)
+                    {
+                        anim_->PlayerChangeAnimation(anim_->Crouch_Guard, true);
+                        player_->TakeDamage(damage / 4); // ダメージ処理（内部で多重防止）
+
+                    }
+                    else 
+                    {
+                        player_->TakeDamage(damage); // ダメージ処理（内部で多重防止）
+                    }
                 }
                 MV1CollResultPolyDimTerminate(result);
             }
@@ -153,19 +166,33 @@ void Collision::PlayerToEnemyCollision(const std::vector<Enemy*>& enemies)
         {
             if (boss->GetIsJumpAttack()) // ジャンプ攻撃中フラグ
             {
-                float currentTime_ = enemy->GetInfo().currentAnimTime_;
-                float totalTime_ = enemy->GetInfo().animTotalTime_;
+                float currentTime_ = enemy->GetAnimInfo()->currentAnimTime_;
+                float totalTime_ = enemy->GetAnimInfo()->animTotalTime_;               
                 float animRatio_ = currentTime_ / totalTime_;
 
                 if (animRatio_ >= 0.3f && animRatio_ <= 0.6f) // 攻撃タイミング中のみ
                 {
+                    // 敵の右手の位置を取得して球体をセット
+                    VECTOR forward = VNorm(VGet(-sinf(enemy->GetRotY()), 0.0f, -cosf(enemy->GetRotY())));
+                    VECTOR rightattackCenter = VAdd(enemy->GetRightHandPosition(), VScale(forward, 50.0f));
+                    VECTOR leftattackCenter = VAdd(enemy->GetLeftHandPosition(), VScale(forward, 50.0f));
+
                     // 両手で攻撃判定（球体）
-                    auto rightHandResult_ = MV1CollCheck_Sphere(Player::GetInstance().GetPlayerModel(), -1, enemy->GetRightHandPosition(), 70.0f);
-                    auto leftHandResult_ = MV1CollCheck_Sphere(Player::GetInstance().GetPlayerModel(), -1, enemy->GetLeftHandPosition(), 70.0f);
+                    auto rightHandResult_ = MV1CollCheck_Sphere(player_->GetPlayerModel(), -1, rightattackCenter, 100.0f);
+                    auto leftHandResult_ = MV1CollCheck_Sphere(player_->GetPlayerModel(), -1, leftattackCenter, 100.0f);
 
                     if (rightHandResult_.HitNum > 0 || leftHandResult_.HitNum > 0)
                     {
-                        Player::GetInstance().TakeDamage(10); // 固定ダメージ（ジャンプ攻撃）
+                        if (anim_->GetPlayerInfo().animIndex_ == anim_->Crouch_Idle)
+                        {
+                            anim_->PlayerChangeAnimation(anim_->Crouch_Guard, true);
+                            player_->TakeDamage(5); // しゃがみ中は1/4のダメージ
+
+                        }
+                        else
+                        {
+                            player_->TakeDamage(20); // 固定ダメージ（ジャンプ攻撃）
+                        }
                     }
 
                     MV1CollResultPolyDimTerminate(rightHandResult_);
@@ -211,11 +238,11 @@ void Collision::EnemyToEnemyCollision(const std::vector<Enemy*> enemies)
 void Collision::SwordToEnemyCollision(const std::vector<Enemy*>& enemies)
 {
     // 武器を持っていない or 攻撃中ではない なら無視
-    if (!Player::GetInstance().GetIsWeapon() || !Player::GetInstance().GetIsAttack())
+    if (!player_->GetIsWeapon() || !player_->GetIsAttack())
         return;
 
     // 剣身の中心に球体をセット
-    VECTOR swordBody = Sword::GetInstance().GetBodyPosition();
+    VECTOR swordBody = sword_->GetBodyPosition();
 
     for (auto& enemy : enemies)
     {
@@ -223,21 +250,22 @@ void Collision::SwordToEnemyCollision(const std::vector<Enemy*>& enemies)
 
         //この攻撃で当たっていたらスキップ
         if (enemy->GetIsAssign()) continue;
+        float radius=(dynamic_cast<BossEnemy*>(enemy)) ? 50.0f : 30.0f;
 
-        auto result = MV1CollCheck_Sphere(enemy->GetModel(), -1, swordBody, 30.0f);
+        auto result = MV1CollCheck_Sphere(enemy->GetModel(), -1, swordBody, radius);
         
         // 当たっていたらダメージを与える
         if (result.HitNum > 0)
         {
             // 敵に攻撃が当たったとき
-            int attackPower = Player::GetInstance().GetAttackPower();
-            int damage = attackPower;
+            int attackPower = player_->GetAttackPower();
+            float damage = attackPower;
 
-            // 10%の確率でクリティカル
-            if (GetRand(9) == 0)
+            // 確率でクリティカル
+            if (RandomManager::Critical(player_->GetCriticalRate()))
             {
-                damage *= 2;
-                Player::GetInstance().SetCriticalDisplay(true);  
+                damage *= player_->GetCriticalDamage();
+                player_->SetCriticalDisplay(true);  
             }
 
             enemy->SetDamage(damage);
@@ -245,7 +273,7 @@ void Collision::SwordToEnemyCollision(const std::vector<Enemy*>& enemies)
             enemy->SetIsAssign(true);
 
             // ヒットストップ開始
-            Player::GetInstance().StartHitStop(0.08f);
+            player_->StartHitStop(0.08f);
         }
 
         MV1CollResultPolyDimTerminate(result);
@@ -253,16 +281,7 @@ void Collision::SwordToEnemyCollision(const std::vector<Enemy*>& enemies)
 }
 
 //デバッグ描画
-void Collision::DrawDebag()
+void Collision::DrawDebag(void)
 {
-    ////プレイヤーの真ん中
-    //VECTOR playerPos = VAdd(Player::GetInstance().GetPlayerPos(), VGet(0.0f, 100.0f, 0.0f));
-    //DrawSphere3D(playerPos, 20, 32, 0xffffff, 0xffffff, false);
-
-    //// 剣の当たり判定
-    //VECTOR swordBase = Sword::GetInstance().GetSwordPosition();
-    //VECTOR forward = VNorm(VGet(sinf(Player::GetInstance().GetRotY()), 0.0f, cosf(Player::GetInstance().GetRotY())));
-    //VECTOR swordCenter = VAdd(swordBase, VScale(forward, 50.0f));
-    //swordCenter.y += 50.0f;
-    //DrawSphere3D(swordCenter, 30.0f, 32, 0xffffff, 0xffffff, false);
+    DrawFormatString(0, 400, 0xffffff, "プレイヤーアニメーション番号：%d", anim_->GetPlayerInfo().animIndex_);
 }

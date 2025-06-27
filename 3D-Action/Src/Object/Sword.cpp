@@ -2,24 +2,12 @@
 #include "Player.h"
 #include "Trail3D.h"
 
-Sword* Sword::instance_ = nullptr;
-
-void Sword::CreateInstance()
-{
-	if (instance_ == nullptr)
-	{
-		instance_ = new Sword();
-	}
-}
-
-Sword& Sword::GetInstance(void)
-{
-	return *instance_;
-}
-
 // コンストラクタ
 Sword::Sword()
 {
+	player_ = nullptr;
+	trail_ = nullptr;
+
 	list.model_ = -1;
 	list.pos_ = { 0.0f,0.0f,0.0f };
 	list.rot_ = { 0.0f,0.0f,0.0f };
@@ -35,8 +23,10 @@ Sword::~Sword()
 }
 
 // 初期化
-void Sword::Init()
+void Sword::Init(Player* player)
 {
+	player_ = player;
+
 	list.model_ = MV1LoadModel("Data/Model/Sword.mv1");
 
 	list.pos_ = VGet(0.0f, 0.0f, 0.0f);
@@ -47,15 +37,15 @@ void Sword::Init()
 
 	MV1SetupCollInfo(list.model_);
 
-	trail = new Trail3D();
-	trail->Init("Data/Image/SwordFlash.png");
+	trail_ = new Trail3D();
+	trail_->Init("Data/Image/SwordFlash.png");
 }
 
 // 更新処理
 void Sword::Update()
 {
-	int playerModel = Player::GetInstance().GetPlayerModel();
-	int rightHandIdx = Player::GetInstance().GetRightHandIndex();
+	int playerModel = player_->GetPlayerModel();
+	int rightHandIdx = player_->GetRightHandIndex();
 
 	if (rightHandIdx != -1)
 	{
@@ -73,15 +63,15 @@ void Sword::Update()
 
 	// 剣身の複数点取得
 	std::vector<VECTOR> bladePoints = GetBladePoints(2.0f, 0.5f, 0.1f);
-	trail->Update(bladePoints);
+	trail_->Update(bladePoints);
 }
 
 // 描画
 void Sword::Draw(void)
 {
-	if (Player::GetInstance().GetIsWeapon()) {
+	if (player_->GetIsWeapon()) {
 		MV1DrawModel(list.model_);
-		trail->Draw();
+		trail_->Draw();
 	}
 }
 
@@ -92,7 +82,7 @@ void Sword::Release(void)
 		MV1DeleteModel(list.model_);
 		list.model_ = -1;
 	}
-	trail->Release();
+	trail_->Release();
 }
 
 // 剣の先端から根元までを計算(先端、根元、間隔)

@@ -42,7 +42,10 @@ void GameClear::Update(void)
 	{
 		mouseFlg_ = false;
 	}
-
+	if (ins.IsPadBtnTrgDown(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN) || ins.IsTrgDown(KEY_INPUT_SPACE))
+	{
+		SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::TITLE);
+	}
 	// ÉVÅ[ÉìëJà⁄
 	if (mouseFlg_)
 	{

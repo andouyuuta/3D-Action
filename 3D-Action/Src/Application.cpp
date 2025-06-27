@@ -1,6 +1,8 @@
 #include <DxLib.h>
 #include "Manager/InputManager.h"
 #include "Manager/SceneManager.h"
+#include "Manager/RandomManager.h"
+#include "Manager/SoundManager.h"
 #include "Application.h"
 
 // インスタンスの生成
@@ -11,6 +13,7 @@ const std::string Application::PATH_MODEL = "Data/Model/";
 const std::string Application::PATH_IMAGE = "Data/Image/";
 const std::string Application::PATH_AICON = "Data/Aicon/";
 const std::string Application::PATH_SOUND = "Data/Sound/";
+const std::string Application::PATH_BUFF = "Data/Buff/";
 
 // 明示的にインスタンスを生成する
 void Application::CreateInstance(void)
@@ -49,9 +52,15 @@ void Application::Init(void)
 
 	SetDrawScreen(DX_SCREEN_BACK);
 
+	// ランダムマネージャーの初期化
+	RandomManager::Init();
+
 	// キー制御初期化
 	SetUseDirectInputFlag(true);
 	InputManager::CreateInstance();
+
+	// SE管理の初期化
+	SoundManager::CreateInstance();
 
 	// シーン管理初期化
 	SceneManager::CreateInstance();
@@ -98,6 +107,10 @@ void Application::Run(void)
 // リソースの解放
 void Application::Release(void)
 {
+	// SE管理の解放処理
+	SoundManager* soundMng = SoundManager::GetInstance();
+	soundMng->DeleteInstance();
+
 	// DxLib終了
 	if (DxLib_End() == -1)
 	{

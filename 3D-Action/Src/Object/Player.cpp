@@ -2,27 +2,15 @@
 #include "../Manager/InputManager.h"
 #include "../Manager/SceneManager.h"
 #include "../Manager/Camera.h"
+#include "../Manager/AnimationManager.h"
+#include "../Application.h"
 #include "Player.h"
 #include "Sword.h"
 #include "Enemy.h"
 #include "EnemyManager.h"
 #include "Stage.h"
 
-Player* Player::instance_ = nullptr;
-
-void Player::CreateInstance()
-{
-	if (instance_ == nullptr)
-	{
-		instance_ = new Player();
-	}
-}
-
-Player& Player::GetInstance(void)
-{
-	return *instance_;
-}
-
+// デストラクタ
 Player::Player(void)
 {
 	list.modelId_ = -1;
@@ -40,12 +28,6 @@ Player::Player(void)
 
 	list.localRot_ = { 0.0f,0.0f,0.0f };
 
-	list.animIndex_ = 0;
-	list.animAttachNo_ = 0;
-	list.animTotalTime_ = 0.0f;
-	list.currentAnimTime_ = 0.0f;
-	list.isAnimLock_ = false;
-
 	list.isDead_ = false;
 	list.isImpact_ = false;
 	list.isCrouch_ = false;
@@ -60,15 +42,28 @@ Player::Player(void)
 	showCriticalText_ = false;
 
 	enemymng_ = nullptr;
+	animation_ = nullptr;
+
+	list.criticalRate_ = 10.0f;
+	list.criticalDamage = 1.5f;
+
+	criticalFontHandle_ = -1;
+	isDamaged_=false;
+
+	list.flashCounter_ = 0.0f;
 }
 
+// デストラクタ
 Player::~Player(void)
 {
 }
 
-void Player::Init(EnemyManager* mng)
+// 初期化
+void Player::Init(EnemyManager* mng, AnimationManager* anim,Camera* camera)
 {
 	enemymng_ = mng;
+	animation_ = anim;
+	camera_ = camera;
 
 	// モデルの読み込み
 	list.modelId_ = MV1LoadModel("Data/Model/PlayerModel.mv1");
@@ -80,6 +75,9 @@ void Player::Init(EnemyManager* mng)
 	// プレイヤーの角度設定
 	list.rot_ = { 0.0f, 0.0f, 0.0f };
 	MV1SetRotationXYZ(list.modelId_, list.rot_);
+
+	// プレイヤーの元の色
+	list.orgColor_ = MV1GetDifColorScale(list.modelId_);
 
 	// 移動ベクトルが作成する角度
 	list.moveVecRad_ = { 0.0f, 0.0f, 0.0f };
@@ -116,11 +114,13 @@ void Player::Init(EnemyManager* mng)
 	list.comboStep_ = 0;
 
 	// HPの初期化
-	list.hp_ = PLAYER_MAX_HP;
+	list.hp_ = PlayerMaxHp_;
 
 	list.isGameOver_ = false;
 	list.isImpact_ = false;
 	list.isInvincible_ = false;
+
+	list.dashCount_ = 0.0f;
 
 	// 無敵時間の残り時間(秒)
 	invincibleTime_ = 0.0f;
@@ -132,26 +132,20 @@ void Player::Init(EnemyManager* mng)
 	// ダメージ間隔制御用
 	damageCooldown_ = 0;
 
-	//アニメーション関連
-	list.animIndex_ = 1;
-	list.animAttachNo_ = MV1AttachAnim(list.modelId_, list.animIndex_);
-	list.animTotalTime_ = MV1GetAttachAnimTotalTime(list.modelId_, list.animAttachNo_);
-	list.currentAnimTime_ = 0.0f;
-	list.isAnimLock_ = false;
-	MV1SetAttachAnimTime(list.modelId_, list.animAttachNo_, list.currentAnimTime_);
-
-	list.currentRatio_ = 0.0f;
-	list.remainingTime_ = 0.0f;
+	// フォントの読み込み
+	criticalFontHandle_ = CreateFontToHandle("メイリオ", 64, 5, DX_FONTTYPE_ANTIALIASING_EDGE);
 
 	MV1SetupCollInfo(list.modelId_);
 }
 
 void Player::Update(float deltaTime)
 {
-	IsDamagedThisFrame_ = false;
+	IsDamagedThisFrame_ = false;	
 
 	// 無敵時間のカウント
-	if (list.isInvincible_) {
+	if (list.isInvincible_) 
+	{
+		// 無敵時間が０以上だったら減少
 		if (invincibleTime_ > 0.0f)
 		{
 			invincibleTime_--;
@@ -166,10 +160,14 @@ void Player::Update(float deltaTime)
 	// クリティカル表示カウント
 	if (showCriticalText_)
 	{
-		criticalDisplayTime_ -= deltaTime;
-		if (criticalDisplayTime_ <= 0.0f)
+		// クリティカル表示時間が０以上だったら減少
+		if (criticalDisplayTime_ > 0.0f)
 		{
-			showCriticalText_ = false;
+			criticalDisplayTime_--;
+			if (criticalDisplayTime_ <= 0.0f)
+			{
+				showCriticalText_ = false;
+			}
 		}
 	}
 
@@ -177,15 +175,15 @@ void Player::Update(float deltaTime)
 	UpdateMove();
 	SetRotation();
 	MV1RefreshCollInfo(list.modelId_);
-	// アニメーション処理
-	PlayAnimation();
 }
 
+// プレイヤー全体の動き
 void Player::UpdateMove(void)
 {
 	// 入力制御取得
 	InputManager& ins = InputManager::GetInstance();
 
+	// 常に高さを０に設定
 	if (list.pos_.y != 0.0f)
 	{
 		list.pos_.y = 0.0f;
@@ -195,81 +193,135 @@ void Player::UpdateMove(void)
 	if (list.isDead_)
 	{
 		list.moveSpeed_ = MOVE_SPEED_STOP;
-		ChangeAnimation(Death);
+		animation_->PlayerChangeAnimation(animation_->Death);								// 死亡アニメーション
 		return;
 	}
 
-	// 被ダメアニメーション中
+	// 被ダメアニメーション中移動させない
 	if (list.isImpact_)
 	{
 		list.moveSpeed_ = MOVE_SPEED_STOP;
 		return;
 	}
 
-	if (ins.IsTrgMouseRight())
+	if (list.isWeapon_)
 	{
-		list.isWeapon_ = !list.isWeapon_;
+		if (CrouchUpdate()) { return; }
+		if (AttackUpdate()) { return; }
+	}
+
+	// 右クリック押したら武器切り替え
+	if (ins.IsTrgMouseRight()||ins.IsPadBtnTrgDown(InputManager::JOYPAD_NO::PAD1,InputManager::JOYPAD_BTN::L_TRIGGER))
+	{
+		list.isWeapon_ = !list.isWeapon_;											// 今のフラグと反対のフラグを代入
 		if (list.isWeapon_)
 		{
-			ChangeAnimation(WeaponOut, true);					//武器取り出し
+			animation_->PlayerChangeAnimation(animation_->WeaponOut, true);				//武器取り出し
 		}
 		else {
-			ChangeAnimation(Sheach, true);						//武器しまう
+			animation_->PlayerChangeAnimation(animation_->Sheach, true);					//武器しまう
 		}
 		return;
 	}
 
+	// 武器切り替えたときの動き
 	if (!list.isWeapon_)
 	{
-		PlayerMove(NoWeaponIdle, NoWeaponWalk, NoWeaponRun);	//武器持っていないときの動き
+		PlayerMove(animation_->NoWeaponIdle, animation_->NoWeaponWalk, animation_->NoWeaponRun);	//武器持っていないときの動き
 	}
 	else
 	{
-		PlayerMove(WeaponIdle, WeaponWalk, WeaponRun);			//武器持っているときの動き
+		PlayerMove(animation_->WeaponIdle, animation_->WeaponWalk, animation_->WeaponRun);			//武器持っているときの動き
 	}
 }
 
+// 描画
 void Player::Draw(void)
 {
 	// モデルの描画
+	if (list.hp_ <= 50)
+	{
+		list.flashCounter_++;
+		float alpha = (sinf(list.flashCounter_ * FLASH_SPEED) + 1.0f) / 2.0f;
+
+		COLOR_F finalColor;
+		finalColor.r = list.orgColor_.r + (1.0f - list.orgColor_.r) * alpha;
+		finalColor.g = list.orgColor_.g * (1.0f - alpha);
+		finalColor.b = list.orgColor_.b * (1.0f - alpha);
+		finalColor.a = 1.0f;
+		MV1SetDifColorScale(list.modelId_, finalColor);
+	}
+	else
+	{
+		list.flashCounter_ = 0.0f;
+		MV1SetDifColorScale(list.modelId_, list.orgColor_);
+	}
+
+	if (list.isInvincible_)
+	{
+		COLOR_F translucentModel = list.orgColor_;
+		translucentModel.a = TRANSLUCENT;
+		MV1SetDifColorScale(list.modelId_, translucentModel);
+	}
 	MV1DrawModel(list.modelId_);
 
-	// プレイヤーHPバー
-	const int HP_BAR_WIDTH = 300;
-	const int HP_BAR_HEIGHT = 20;
-	float hpRatio = (float)list.hp_ / PLAYER_MAX_HP;
-
-	int color = GetColor(0, 255, 0); // 緑
-	if (list.hp_ <= 20)
-	{
-		color = GetColor(255, 0, 0); //赤
-	}
-	else if (list.hp_ < PLAYER_MAX_HP / 2)
-	{
-		color = GetColor(255, 255, 0); // 黄
-	}
-
-	int x = 20;
-	int y = 20;
-	DrawBox(x, y, x + HP_BAR_WIDTH, y + HP_BAR_HEIGHT, GetColor(50, 50, 50), TRUE); // 背景（グレー）
-	DrawBox(x, y, x + (int)(HP_BAR_WIDTH * hpRatio), y + HP_BAR_HEIGHT, color, TRUE); // HPバー本体
-	DrawBox(x, y, x + HP_BAR_WIDTH, y + HP_BAR_HEIGHT, GetColor(255, 255, 255), FALSE); // 枠線
-
-
 	// === デバッグ表示：プレイヤーのHPと攻撃力 ===
-	DrawFormatString(20, 500, GetColor(255, 255, 255), "プレイヤーHP：%d / %d", list.hp_, PLAYER_MAX_HP);
+	DrawFormatString(20, 500, GetColor(255, 255, 255), "プレイヤーHP：%d / %d", list.hp_, PlayerMaxHp_);
 	DrawFormatString(20, 530, GetColor(255, 255, 255), "プレイヤー攻撃力：%d", list.attackPower_);
 
 	// プレイヤー座標表示
 	if (list.isInvincible_) {
-		DrawFormatString(20, 120, GetColor(0xff, 0xff, 0xff), "無敵時間：%f", invincibleTime_);
+		DrawFormatString(20, 300, GetColor(0xff, 0xff, 0xff), "無敵時間：%f", invincibleTime_);
 	}
 	DrawFormatString(20, 150, GetColor(0xff, 0xff, 0xff), "プレイヤーHP：%d", list.hp_);
+
+	// ゲームパッドのデバッグ情報表示（左スティック値）
+	InputManager& ins = InputManager::GetInstance();
+	InputManager::JOYPAD_IN_STATE pad = ins.GetJPadInputState(InputManager::JOYPAD_NO::PAD1);
+
+	// 左スティックの入力値（-1000～1000）
+	float lx = pad.AKeyLX / 1000.0f;
+	float ly = pad.AKeyLY / 1000.0f;
+	DrawFormatString(20, 400, 0xffffff, "dashCount：%f", list.dashCount_);
+	DrawFormatString(20, 580, GetColor(0, 255, 255), "Pad Left Stick X: %.2f", lx);
+	DrawFormatString(20, 600, GetColor(0, 255, 255), "Pad Left Stick Y: %.2f", ly);
+
+	// ボタン入力（Xボタン＝DOWN）も確認
+	bool isADown = ins.IsPadBtnNew(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN);
+	DrawFormatString(20, 620, GetColor(255, 255, 0), "Pad A Button (DOWN): %s", isADown ? "Pressed" : "Not Pressed");
 
 	// クリティカル表示
 	if (showCriticalText_)
 	{
-		DrawFormatString(20, 20, GetColor(255, 0, 0), "クリティカル！");
+
+		// 表示時間に応じて透明度を変える
+		// 時間がたつほど透明になってフェードアウトさせる
+		int alpha = (int)(255.0f * (criticalDisplayTime_ / 180.0f)); // 最大3秒の残り時間で調整
+
+		// スケールを拡大縮小する(最大1.5倍)
+		float scale = 1.0f + 0.5f * (1.0f - (criticalDisplayTime_ / 180.0f));
+
+		// 中央に表示するための座標
+		int screenW = Application::SCREEN_SIZE_X / 2;
+		int screenH = Application::SCREEN_SIZE_Y / 3;
+
+		// aブレンドモードを設定(透明度を有効化)
+		SetDrawBlendMode(DX_BLENDMODE_ALPHA, alpha);
+
+		// 中央に赤く大きな文字で「CRITICAL!!」と表示(フォントハンドルを使う)
+		DrawRotaStringToHandle(
+			screenW, screenH,         // 中心X, Y
+			scale, scale,             // 拡大率X, Y
+			0.0, 0.0,                 // 回転中心X, Y
+			0.0,                      // 回転角（回転不要）
+			GetColor(255, 0, 0),      // 文字色（赤）
+			criticalFontHandle_,      // フォントハンドル
+			GetColor(0, 0, 0),        // 縁色（黒）
+			FALSE,                    // 縦書きフラグ：FALSE = 横書き
+			TEXT("CRITICAL!!")        // 文字列（TCHAR対応）
+		);
+		// ブレンドモード解除
+		SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
 	}
 }
 
@@ -277,8 +329,10 @@ void Player::Draw(void)
 void Player::Release(void)
 {
 	MV1DeleteModel(list.modelId_);
+	DeleteFontToHandle(criticalFontHandle_);	// フォントの解放
 }
 
+// 動いているか
 bool Player::IsMove(VECTOR _moveVec)
 {
 	// XYZすべての座標の移動量の絶対値をとる
@@ -302,6 +356,7 @@ bool Player::IsMove(VECTOR _moveVec)
 	}
 }
 
+// プレイヤーの回転処理
 void Player::SetRotation(void)
 {
 	//------------------------------------
@@ -325,94 +380,70 @@ void Player::SetRotation(void)
 	MV1SetRotationMatrix(list.modelId_, mat);
 }
 
+// しゃがみ更新
 bool Player::CrouchUpdate(void)
 {
 	InputManager& ins = InputManager::GetInstance();
 
-	//防御(しゃがみ)時には移動させない
-	if (ins.IsNew(KEY_INPUT_LCONTROL))
+	//左コントロールでしゃがみ
+	if (ins.IsNew(KEY_INPUT_LCONTROL)||ins.IsPadBtnNew(InputManager::JOYPAD_NO::PAD1,InputManager::JOYPAD_BTN::R_BUTTON))
 	{
+		//しゃがみ状態に入るとき
 		if (!list.isCrouch_)
 		{
-			//しゃがみ状態に入るとき
-			list.isCrouch_ = true;
+			list.isCrouch_ = true;				
 			list.isAttack_ = false;
-			list.moveSpeed_ = MOVE_SPEED_STOP;		//動きを止める
-			ChangeAnimation(Crouch, true);			//しゃがみ再生
+			list.moveSpeed_ = MOVE_SPEED_STOP;		// 動きを止める
+			animation_->PlayerChangeAnimation(animation_->Crouch, true);			// しゃがみ再生
 			return true;
 		}
 
-		if (!list.isAnimLock_)
+		// キー押し続けていたら待機
+		if (!animation_->GetPlayerInfo().isAnimLock_)
 		{
-			ChangeAnimation(Crouch_Idle);			//しゃがみ待機
+			animation_->PlayerChangeAnimation(animation_->Crouch_Idle);			// しゃがみ待機
 		}
 
 		return true;	//しゃがみ中
 	}
+	// しゃがんでいる場合にキーを話したらしゃがみ解除
 	else if (list.isCrouch_)
 	{
-		//左コントロールを離したときにしゃがみ解除
-		ChangeAnimation(Crouch_Cancel, true);		//しゃがみ解除
+		animation_->PlayerChangeAnimation(animation_->Crouch_Cancel, true);		// しゃがみ解除
 		list.isCrouch_ = false;
 	}
-	return false;		//しゃがみ中ではない
+	return false;		// しゃがみ中ではない
 }
 
+// 攻撃更新処理
 bool Player::AttackUpdate(void)
 {
 	InputManager& ins = InputManager::GetInstance();
 
-	if (!list.isAttack_ && ins.IsTrgMouseLeft())
+	// 攻撃していない状態で、左クリックを押したとき or 右トリガー押したとき
+	if (!list.isAttack_ && (ins.IsTrgMouseLeft()||		
+		ins.IsPadBtnTrgDown(InputManager::JOYPAD_NO::PAD1,InputManager::JOYPAD_BTN::LEFT)))
 	{
-		list.isAttack_ = true;
-		list.comboStep_ = 1;
-		list.isCombo_ = false;
-		ChangeAnimation(First_Attack, true);
+		list.isAttack_ = true;					// 攻撃フラグをtrueに
+		list.comboStep_ = 1;					// コンボ段階を１に
+		list.isCombo_ = false;					// コンボ中をtrueに
+		animation_->PlayerChangeAnimation(animation_->First_Attack, true);
 		return true;
 	}
 
-	if(AttackCombo(1, Third_Attack, 2, 0.5f, 5.0f))return true;
-	if(AttackCombo(2, Force_Attack, 3, 0.5f, 15.0f))return true;
-	if(AttackCombo(3, Second_Attack, 4, 0.5f, 15.0f))return true;
+	if(animation_->PlayerAttackCombo(1, animation_->Second_Attack, 2, 0.5f, 5.0f))return true;		// １段階目で半分以上(0.5f)のときに攻撃ボタン押したらアニメーションスキップ(後ろから5.0f)して次のアニメーションへ
+	if(animation_->PlayerAttackCombo(2, animation_->Third_Attack, 3, 0.5f, 15.0f))return true;		// ２段階目で半分以上(0.5f)のときに攻撃ボタン押したらアニメーションスキップ(後ろから15.0f)して次のアニメーションへ
 
 	return list.isAttack_;		//攻撃中か
 }
 
-//攻撃コンボ(今のコンボ、次のアニメーション、次の段階、入力受付時間(後ろからの割合)、アニメーションスキップ時間(後ろから))
-bool Player::AttackCombo(int nowcombo, int nextanimidx, int nextstep, float reception, float remainingtime)
-{
-	InputManager& ins = InputManager::GetInstance();
-
-	//攻撃１中にアニメーションが半分以上進んでいたら攻撃２
-	if (list.isAttack_ && list.comboStep_ == nowcombo)
-	{
-		//現在のアニメーション時間(割合)
-		list.currentRatio_ = list.currentAnimTime_ / list.animTotalTime_;
-
-		//アニメーションが指定の割合以上＋左クリック押したとき
-		if (list.currentRatio_ >= reception && ins.IsTrgMouseLeft())
-		{
-			list.isCombo_ = true;
-		}
-
-		// 残り時間が一定以下＋コンボ可能なら次のアニメーションへ
-		list.remainingTime_ = list.animTotalTime_ - list.currentAnimTime_;
-		if (list.remainingTime_ <= remainingtime && list.isCombo_)
-		{
-			list.comboStep_ = nextstep;
-			list.isCombo_ = false;
-			ChangeAnimation(nextanimidx, true);
-			return true;
-		}
-	}
-	return false;
-}
-
+// プレイヤーがダメージを受けたとき
 void Player::TakeDamage(int damage)
 {
 	// このフレームで既にダメージを受けていれば無効（即時の多段防止）
 	if (invincibleTime_ > 0.0f) return;
 
+	// HPを減らす
 	list.hp_ -= damage;
 	// HPが0以下なら死亡状態へ移行
 	if (list.hp_ <= 0)
@@ -420,21 +451,27 @@ void Player::TakeDamage(int damage)
 		list.hp_ = 0;
 		list.isDead_ = true;
 	}
+	else
+	{
+		list.isInvincible_ = true;
+		if (animation_->GetPlayerInfo().animIndex_ == animation_->Crouch_Guard)
+		{
+			SetInvincibleTime(3.0f);
+			animation_->PlayerChangeAnimation(animation_->Crouch_Guard, true);
+		}
+		else
+		{
+			SetInvincibleTime(5.0f);								// 無敵時間を5秒に設定
+			animation_->PlayerChangeAnimation(animation_->Impact, true);  // ダメージアニメーション再生
+		}
 
-	list.isInvincible_ = true;
-	invincibleTime_ = 5.0f * 60.0f;			// 無敵時間を5秒に設定
-	ChangeAnimation(Impact, true);  // ダメージアニメーション再生
+	}
 }
 
+// プレイヤーの移動処理
 void Player::PlayerMove(int idle, int walk, int run)
 {
 	InputManager& ins = InputManager::GetInstance();
-
-	if (list.isWeapon_)
-	{
-		if (CrouchUpdate()) { return; }
-		if (AttackUpdate()) { return; }
-	}
 
 	// WASDでプレイヤー移動
 	list.moveVec_ = { 0.0f, 0.0f, 0.0f };
@@ -445,11 +482,17 @@ void Player::PlayerMove(int idle, int walk, int run)
 	VECTOR FRONT_MOVE_VEC = { 0.0f,  0.0f,  1.0f };
 	VECTOR BACK_MOVE_VEC = { 0.0f,  0.0f, -1.0f };
 
+	InputManager::JOYPAD_IN_STATE pad = ins.GetJPadInputState(InputManager::JOYPAD_NO::PAD1);
+
+	// 左スティックの入力値（-1000～1000）
+	float lx = pad.AKeyLX / 1000.0f;
+	float ly = pad.AKeyLY / 1000.0f;
+
 	// 入力方向に移動ベクトルを追加する
-	if (ins.IsNew(KEY_INPUT_W)) { list.moveVec_ = VAdd(list.moveVec_, FRONT_MOVE_VEC); }
-	if (ins.IsNew(KEY_INPUT_A)) { list.moveVec_ = VAdd(list.moveVec_, LEFT_MOVE_VEC); }
-	if (ins.IsNew(KEY_INPUT_S)) { list.moveVec_ = VAdd(list.moveVec_, BACK_MOVE_VEC); }
-	if (ins.IsNew(KEY_INPUT_D)) { list.moveVec_ = VAdd(list.moveVec_, RIGHT_MOVE_VEC); }
+	if (ins.IsNew(KEY_INPUT_W) || ly < 0) { list.moveVec_ = VAdd(list.moveVec_, FRONT_MOVE_VEC); }
+	if (ins.IsNew(KEY_INPUT_A) || lx < 0) { list.moveVec_ = VAdd(list.moveVec_, LEFT_MOVE_VEC); }
+	if (ins.IsNew(KEY_INPUT_S) || ly > 0) { list.moveVec_ = VAdd(list.moveVec_, BACK_MOVE_VEC); }
+	if (ins.IsNew(KEY_INPUT_D) || lx > 0) { list.moveVec_ = VAdd(list.moveVec_, RIGHT_MOVE_VEC); }
 
 	// ベクトルの移動が行われていたら座標更新
 	if (IsMove(list.moveVec_))
@@ -457,32 +500,25 @@ void Player::PlayerMove(int idle, int walk, int run)
 		// 移動状態の設定
 		list.moveKind_ = 1;
 
+		list.dashCount_++;
+
 		// カメラ角度分設定する
-		VECTOR cameraAngles = SceneManager::GetInstance().GetCamera()->GetCameraAngles();
+		VECTOR cameraAngles = camera_->GetCameraAngles();
 		MATRIX cameraMatY = MGetRotY(cameraAngles.y);
 		list.moveVec_ = VTransform(list.moveVec_, cameraMatY);
 
-		// スタミナが切れているかどうか
-		bool spFlg_ = false;
-		if (spFlg_)
+		if (list.dashCount_ >= 100.0f)
 		{
-			// スタミナない状態
-			list.moveSpeed_ = MOVE_SPEED_STOP;
+			// ダッシュ状態
+			list.moveSpeed_ = MOVE_SPEED_RUN;
+			animation_->PlayerChangeAnimation(run);
+			list.dashCount_ = 100.0f;
 		}
 		else
 		{
-			if (ins.IsNew(KEY_INPUT_LSHIFT))
-			{
-				// ダッシュ状態
-				list.moveSpeed_ = MOVE_SPEED_RUN;
-				ChangeAnimation(run);
-			}
-			else
-			{
-				// 歩き状態
-				list.moveSpeed_ = MOVE_SPEED_WALK;
-				ChangeAnimation(walk);
-			}
+			// 歩き状態
+			list.moveSpeed_ = MOVE_SPEED_WALK;
+			animation_->PlayerChangeAnimation(walk);
 		}
 
 		// 座標更新
@@ -505,182 +541,17 @@ void Player::PlayerMove(int idle, int walk, int run)
 		// 移動状態の設定
 		list.moveKind_ = 0;
 
+		list.dashCount_ = 0.0f;
+
 		//アニメーションロックされていないとき待機
-		if (!list.isAnimLock_)
+		if (!animation_->GetPlayerInfo().isAnimLock_)
 		{
-			ChangeAnimation(idle);
+			animation_->PlayerChangeAnimation(idle);
 		}
 	}
 }
 
-void Player::PlayAnimation(void)
-{
-	DebugAnimation();
-	switch (list.animIndex_)
-	{
-		//ループさせる
-	case NoWeaponIdle:			//武器なし待機
-	case NoWeaponWalk:			//武器なし歩く
-	case NoWeaponRun:			//武器なし走る
-	case WeaponIdle:			//武器あり待機
-	case WeaponWalk:			//武器あり歩く
-	case WeaponRun:				//武器あり走る
-	case Strafe:				//横歩き
-	case Crouch_Idle:			//しゃがみ待機	
-		list.currentAnimTime_ += ANIM_SPEED;
-		if (list.currentAnimTime_ > list.animTotalTime_)
-		{
-			list.currentAnimTime_ = 0.0f;
-		}
-		list.isAnimLock_ = false;
-		break;
-		//ループさせない
-	case WeaponOut:			//武器取り出し
-	case Sheach:			//武器戻す
-		list.currentAnimTime_ += ANIM_SPEED;
-		if (list.currentAnimTime_ >= list.animTotalTime_)
-		{
-			list.currentAnimTime_ = list.animTotalTime_;
-			list.isAnimLock_ = false;
-		}
-		break;
-	case Jump:				//ジャンプ
-		list.currentAnimTime_ += ATTACK_ANIM_SPEED;
-		if (list.currentAnimTime_ >= list.animTotalTime_)
-		{
-			list.currentAnimTime_ = list.animTotalTime_;
-			list.isAnimLock_ = false;
-		}
-		break;
-	case First_Attack:		//攻撃１
-	case Second_Attack:		//攻撃２
-	case Third_Attack:		//攻撃３
-	case Force_Attack:		//攻撃４
-		list.currentAnimTime_ += ATTACK_ANIM_SPEED;
-		if (list.currentAnimTime_ >= list.animTotalTime_)
-		{
-			list.currentAnimTime_ = list.animTotalTime_;
-			list.isAnimLock_ = false;
-			list.isAttack_ = false;
-			list.comboStep_ = 0;
-			list.isCombo_ = false;
-		}
-		break;
-	case Impact:		//攻撃受けたとき
-		list.currentAnimTime_ += ATTACK_ANIM_SPEED;
-		if (list.currentAnimTime_ >= list.animTotalTime_)
-		{
-			list.currentAnimTime_ = list.animTotalTime_;
-			list.isAnimLock_ = false;
-			list.isImpact_ = false;
-		}
-		else
-		{
-			list.isImpact_ = true;
-		}
-		break;
-	case Death:		//死亡
-		list.currentAnimTime_ += DEAD_ANIM_SPEED;
-		if (list.currentAnimTime_ >= list.animTotalTime_)
-		{
-			list.currentAnimTime_ = list.animTotalTime_;
-			list.isAnimLock_ = false;
-			if (!list.isGameOver_)
-			{
-				list.isGameOver_ = true;
-				SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::GAMEOVER);
-			}
-		}
-		break;
-	case Crouch:		//しゃがみ(防御)
-		list.currentAnimTime_ += CROUCH_ANIM_SPEED;
-		if (list.currentAnimTime_ >= list.animTotalTime_)
-		{
-			list.currentAnimTime_ = list.animTotalTime_;
-			list.isAnimLock_ = false;
-
-			ChangeAnimation(12);		//しゃがみ待機
-		}
-		break;
-	case Crouch_Cancel:		//しゃがみ解除
-		list.currentAnimTime_ += CROUCH_ANIM_SPEED;
-		if (list.currentAnimTime_ >= list.animTotalTime_)
-		{
-			list.currentAnimTime_ = list.animTotalTime_;
-			list.isAnimLock_ = false;
-		}
-		break;
-	case Crouch_Guard:		//防御したとき
-		list.currentAnimTime_ += CROUCH_ANIM_SPEED;
-		if (list.currentAnimTime_ >= list.animTotalTime_)
-		{
-			list.currentAnimTime_ = list.animTotalTime_;
-			list.isAnimLock_ = false;
-		}
-		break;
-
-	default:
-		break;
-	}
-	MV1SetAttachAnimTime(list.modelId_, list.animAttachNo_, list.currentAnimTime_);
-	MV1SetPosition(list.modelId_, list.pos_);
-}
-
-//矢印キーでアニメーション切り替え
-void Player::DebugAnimation(void)
-{
-	InputManager& ins = InputManager::GetInstance();
-	if (ins.IsTrgDown(KEY_INPUT_0)) {
-		list.isImpact_ = true;
-	}
-	if (ins.IsTrgDown(KEY_INPUT_1)) {
-		ChangeAnimation(Crouch_Guard);
-	}
-	if (ins.IsTrgDown(KEY_INPUT_2)) {
-		ChangeAnimation(2);
-	}
-	if (ins.IsTrgDown(KEY_INPUT_3)) {
-		ChangeAnimation(3);
-	}
-	if (ins.IsTrgDown(KEY_INPUT_4)) {
-		ChangeAnimation(4);
-	}
-}
-
-bool Player::AttackActive(void)
-{
-	if (list.animIndex_ == First_Attack || list.animIndex_ == Second_Attack
-		|| list.animIndex_ == Third_Attack || list.animIndex_ == Force_Attack)
-	{
-		return true;
-	}
-	return false;
-}
-
-//アニメーション切り替え
-void Player::ChangeAnimation(int idx, bool lock)
-{
-	if (list.animIndex_ != idx) {
-		MV1DetachAnim(list.modelId_, list.animAttachNo_);
-		list.animIndex_ = idx;
-		list.animAttachNo_ = MV1AttachAnim(list.modelId_, list.animIndex_);
-		list.animTotalTime_ = MV1GetAttachAnimTotalTime(list.modelId_, list.animAttachNo_);
-		list.currentAnimTime_ = 0.0f;
-		MV1SetAttachAnimTime(list.modelId_, list.animAttachNo_, list.currentAnimTime_);
-		//ロック指定されたらフラグON
-		list.isAnimLock_ = lock;
-
-		if (AttackActive())
-		{
-			// 攻撃に切り替わったタイミングで全敵のassignをリセット
-			for (auto& enemy : enemymng_->GetEnemyPtrs())
-			{
-				enemy->SetIsAssign(false);
-			}
-		}
-	}
-}
-
+// 攻撃が当たっていたらヒットストップ
 void Player::HitStop(void)
 {
 	if (list.isHitStop_)
@@ -697,9 +568,9 @@ void Player::HitStop(void)
 }
 
 // 全回復
-void Player::RecoverHp()
+void Player::FullRecoveryHp()
 {
-	list.hp_ = PLAYER_MAX_HP; // 最大値にする（もしMaxHPが増えているならその変数で）
+	list.hp_ = PlayerMaxHp_; // 最大値にする（もしMaxHPが増えているならその変数で）
 }
 
 // 攻撃力を上げる
@@ -714,10 +585,10 @@ void Player::AddAttack(int amount)
 	}
 }
 
-// HP,攻撃力を上げる
+// HPを上げる
 void Player::AddMaxHp(int amount)
 {
-	PLAYER_MAX_HP += amount;
+	PlayerMaxHp_ += amount;
 	list.hp_ += amount; // 今のHPも増やす
 }
 
@@ -725,11 +596,8 @@ void Player::AddMaxHp(int amount)
 void Player::SetCriticalDisplay(bool enable)
 {
 	showCriticalText_ = enable;
-	if (enable) criticalDisplayTime_ = 3.0f;  // 表示を3秒間
-}
-
-// アニメーション中かどうか
-bool Player::IsPlayingImpactAnimation() const
-{
-	return list.animIndex_ == Impact && list.currentAnimTime_ < list.animTotalTime_;
+	if (enable)
+	{
+		criticalDisplayTime_ = 180.0f;  // 表示を3秒間
+	}
 }

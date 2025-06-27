@@ -42,12 +42,6 @@ Enemy::Enemy(void)
 	list.moveVecRad_ = VGet(0.0f, 0.0f, 0.0f);
 	list.localRot_ = INIT_MODEL_ROT_OFFSET;
 
-	list.animIndex_ = 0;
-	list.animAttachNo_ = -1;
-	list.animTotalTime_ = 0.0f;
-	list.currentAnimTime_ = 0.0f;
-	list.isAnimLock_ = false;
-
 	list.isDead_ = false;
 	list.isDraw_ = true;
 	list.isAttack_ = false;
@@ -56,6 +50,10 @@ Enemy::Enemy(void)
 	list.isAssign_ = false;
 
 	list.attackRange_ = 0.0f;
+
+	player_ = nullptr;
+	animInfo_ = nullptr;
+	animation_ = nullptr;
 }
 
 Enemy::~Enemy(void)
@@ -63,8 +61,14 @@ Enemy::~Enemy(void)
 }
 
 // 初期化
-void Enemy::Init(int org, int hp, int attack)
+void Enemy::Init(int org, int hp, int attack, Player* player, AnimationManager* anim, AnimationManager::AnimationInfo* animinfo)
 {
+	player_ = player;
+	animation_ = anim;
+	animInfo_ = animinfo;
+
+	SetAnimInfo(animInfo_);
+
 	//モデル
 	list.modelId_ = MV1DuplicateModel(org);
 	//座標
@@ -85,24 +89,15 @@ void Enemy::Init(int org, int hp, int attack)
 	// 攻撃力の初期化
 	list.attackPower_ = attack;
 
-	//アニメーション関連
-	list.animIndex_ = 0;
-	list.animAttachNo_ = MV1AttachAnim(list.modelId_, list.animIndex_);
-	list.animTotalTime_ = MV1GetAttachAnimTotalTime(list.modelId_, list.animAttachNo_);
-	list.currentAnimTime_ = 0.0f;
-	list.isAnimLock_ = false;
-	MV1SetAttachAnimTime(list.modelId_, list.animAttachNo_, list.currentAnimTime_);
-
 	list.isDead_ = false;
 
 	list.isHitboxActive_ = false;
 }
 
 // 更新
-void Enemy::Update()
+void Enemy::Update(void)
 {
 	UpdateMove();
-	PlayAnimation();
 	MV1RefreshCollInfo(list.modelId_);
 }
 
@@ -112,32 +107,8 @@ void Enemy::Draw(void)
 	if (!list.isDead_) 
 	{
 		MV1DrawModel(list.modelId_);
-		VECTOR worldPos = VAdd(list.pos_, VGet(0.0f, 50.0f, 0.0f)); // 敵の上の位置
-		worldPos.y += 100.0f;  // 頭の上
-		float screenX, screenY;
-
-		if (GetTransformPosition(&worldPos, &screenX, &screenY) == 0)
-		{
-			const int BAR_WIDTH = 40;
-			const int BAR_HEIGHT = 5;
-
-			// HPバー描画
-			float hpRatio = (float)list.hp_ / list.maxHp_;
-			if (hpRatio < 0.0f) hpRatio = 0.0f;
-			if (hpRatio > 1.0f) hpRatio = 1.0f;
-
-			int barX = static_cast<int>(screenX) - BAR_WIDTH / 2;
-			int barY = static_cast<int>(screenY) - BAR_HEIGHT / 2;
-
-			// 背景バー（グレー）
-			DrawBox(barX, barY, barX + BAR_WIDTH, barY + BAR_HEIGHT, GetColor(80, 80, 80), TRUE);
-			// HPバー（赤）
-			DrawBox(barX, barY, barX + (int)(BAR_WIDTH * hpRatio), barY + BAR_HEIGHT, GetColor(255, 0, 0), TRUE);
-			// デバッグ表示
-			DrawFormatString(0, 600, GetColor(255, 255, 255), "敵HP：%d / %d", list.hp_, list.maxHp_);
-			DrawFormatString(0, 630, GetColor(255, 255, 255), "敵攻撃力：%d", list.attackPower_);
-		}
 	}
+	DrawFormatString(100, 300, 0xffffff, "敵アニメーション番号：%d", animInfo_->animIndex_);
 }
 
 // 解放
@@ -149,8 +120,10 @@ void Enemy::Release(void)
 // 移動処理
 void Enemy::UpdateMove(void)
 {
+	const auto& anim = GetAnimInfo();
+
 	// 攻撃中は移動しない
-	if (list.isAnimLock_) return;
+	if (anim->isAnimLock_) return;
 
 	// 高さを強制的に地面に固定（不要なら削除可）
 	if (list.pos_.y != 0.0f)
@@ -158,24 +131,23 @@ void Enemy::UpdateMove(void)
 		list.pos_.y = 0.0f;
 	}
 
-	if (!Player::GetInstance().GetIsDead())
+	if (!player_->GetIsDead())
 	{
 		// プレイヤーとのXZ方向ベクトル
-		VECTOR toPlayer = VSub(Player::GetInstance().GetPlayerPos(), list.pos_);
+		VECTOR toPlayer = VSub(player_->GetPlayerPos(), list.pos_);
 		toPlayer.y = 0.0f;
 
 		VECTOR dir = VNorm(toPlayer); // 正規化した向きベクトル
 
 		// プレイヤーの方向に「指定距離」だけオフセットした座標を攻撃基準にする
 		const float attackOffsetDistance = 20.0f;
-		VECTOR targetAttackPos = VAdd(Player::GetInstance().GetPlayerPos(), VScale(dir, attackOffsetDistance));
+		VECTOR targetAttackPos = VAdd(player_->GetPlayerPos(), VScale(dir, attackOffsetDistance));
 
 		// 攻撃対象との距離を測る
-		float dist = VSize(VSub(targetAttackPos, list.pos_));
+		float dist = VSize(toPlayer);
 
 		// 攻撃範囲設定（ボス or 通常敵）
-		//list.attackRange_ = list.isBoss_ ? 100.0f : 50.0f;
-		list.attackRange_ = 100.0f;
+		list.attackRange_ = 90;
 		// クールダウン減少
 		if (list.attackCooldown_ > 0.0f)
 		{
@@ -183,10 +155,10 @@ void Enemy::UpdateMove(void)
 		}
 
 		// 攻撃条件を満たす場合
-		if (!list.isAnimLock_ && dist < list.attackRange_ && list.attackCooldown_ <= 0.0f)
+		if (!anim->isAnimLock_ && dist < list.attackRange_ && list.attackCooldown_ <= 0.0f)
 		{
 			list.isAttack_ = true;
-			ChangeAnimation(EnemyAnim::ANIM_ATTACK, true);
+			animation_->EnemyChangeAnimation(this, AnimationManager::EnemyAnim::ANIM_ATTACK, true);
 			list.attackCooldown_ = ATTACK_COOLDOWN_TIME;
 			return;
 		}
@@ -201,28 +173,13 @@ void Enemy::UpdateMove(void)
 			MV1SetPosition(list.modelId_, list.pos_);
 			MV1SetRotationXYZ(list.modelId_, list.rot_);
 
-			// モーション切り替え（歩かない）
-			if (list.animIndex_ != EnemyAnim::ANIM_IDLE && !list.isAnimLock_)
-			{
-				ChangeAnimation(ANIM_IDLE);
-			}
 			return;
 		}
+		float animRatio = anim->currentAnimTime_ / anim->animTotalTime_;
 
-		float animRatio = list.currentAnimTime_ / list.animTotalTime_;
-
-		if ((animRatio >= 0.8f && animRatio <= 1.0f) || (animRatio <= 0.1f) || (animRatio >= 0.3f && animRatio <= 0.6f))
+		if (list.isBoss_)
 		{
-
-			// プレイヤーが攻撃範囲外だったら接近開始
-			if (list.isBoss_)
-			{
-				list.moveVec_ = VScale(dir, MOVE_BOSS_SPEED_WALK);
-			}
-			else
-			{
-				list.moveVec_ = VScale(dir, MOVE_SPEED_WALK);
-			}
+			list.moveVec_ = VScale(dir, MOVE_BOSS_SPEED_WALK);
 
 			list.nextPos_ = VAdd(list.pos_, list.moveVec_);
 			list.pos_ = list.nextPos_;
@@ -231,30 +188,45 @@ void Enemy::UpdateMove(void)
 			float targetAngleY = atan2f(dir.x, dir.z);
 			list.rot_.y = targetAngleY - INIT_MODEL_ROT_OFFSET.y * 2;
 		}
+		else
+		{
+			if ((animRatio >= 0.8f && animRatio <= 1.0f) || (animRatio <= 0.1f) || (animRatio >= 0.3f && animRatio <= 0.6f))
+			{
+				// プレイヤーが攻撃範囲外だったら接近開始
+				list.moveVec_ = VScale(dir, MOVE_SPEED_WALK);
+				list.nextPos_ = VAdd(list.pos_, list.moveVec_);
+				list.pos_ = list.nextPos_;
+
+				// 向き調整
+				float targetAngleY = atan2f(dir.x, dir.z);
+				list.rot_.y = targetAngleY - INIT_MODEL_ROT_OFFSET.y * 2;
+			}
+		}
 
 		MV1SetPosition(list.modelId_, list.pos_);
 		MV1SetRotationXYZ(list.modelId_, list.rot_);
 
 		// モーション切り替え（移動中なら歩き）
-		if (VSize(list.moveVec_) > 0.01f)
+		if (VSize(list.moveVec_) > WALK_START)
 		{
-			if (list.animIndex_ != EnemyAnim::ANIM_WALK && !list.isAnimLock_)
+			if (anim->animIndex_ != AnimationManager::EnemyAnim::ANIM_WALK && !anim->isAnimLock_)
 			{
-				ChangeAnimation(ANIM_WALK);
+				animation_->EnemyChangeAnimation(this, AnimationManager::EnemyAnim::ANIM_WALK);
+
 			}
 		}
-		else
+		else if (VSize(list.moveVec_) > WALK_STOP)
 		{
-			if (list.animIndex_ != EnemyAnim::ANIM_IDLE && !list.isAnimLock_)
+			if (anim->animIndex_ != AnimationManager::EnemyAnim::ANIM_IDLE && !anim->isAnimLock_)
 			{
-				ChangeAnimation(ANIM_IDLE);
+				animation_->EnemyChangeAnimation(this, AnimationManager::EnemyAnim::ANIM_IDLE);
 			}
 		}
 	}
 	else
 	{
 		// プレイヤー死亡時は待機
-		ChangeAnimation(ANIM_IDLE);
+		animation_->EnemyChangeAnimation(this, AnimationManager::EnemyAnim::ANIM_IDLE);
 	}
 }
 
@@ -311,57 +283,42 @@ void Enemy::SetDamage(int dp)
 	}
 }
 
-//アニメーション再生
-void Enemy::PlayAnimation(void)
+void Enemy::DrawDebug(void)
 {
-	switch (list.animIndex_)
-	{
-	//ループさせる
-	case ANIM_IDLE:				//待機
-	case ANIM_WALK:				//歩く
-	case ANIM_RUN:				//走る
-		list.currentAnimTime_ += ANIM_SPEED;
-		if (list.currentAnimTime_ > list.animTotalTime_)
-		{
-			list.currentAnimTime_ = 0.0f;
-		}
-		break;
-	//ループさせない
-	case ANIM_ATTACK:			//攻撃
-		list.currentAnimTime_ += ATTACK_ANIM_SPEED;
-		if (list.currentAnimTime_ >= list.animTotalTime_)
-		{
-			list.currentAnimTime_ = list.animTotalTime_;
-			list.isAnimLock_ = false;
-			list.isAttack_ = false;
-		}
-		break;
-	case ANIM_DEAD:				//死亡
-		list.currentAnimTime_ += DEAD_ANIM_SPEED;
-		if (list.currentAnimTime_ >= list.animTotalTime_)
-		{
-			list.currentAnimTime_ = list.animTotalTime_;
-			list.isAnimLock_ = false;
-		}
-		break;
-	default:
-		break;
-	}
-	MV1SetAttachAnimTime(list.modelId_, list.animAttachNo_, list.currentAnimTime_);
-	MV1SetPosition(list.modelId_, list.pos_);
-}
+	VECTOR worldPos = VAdd(list.pos_, VGet(0.0f, 50.0f, 0.0f)); // 敵の上の位置
+	worldPos.y += 100.0f;  // 頭の上
+	float screenX, screenY;
 
-//アニメーション切り替え
-void Enemy::ChangeAnimation(int idx, bool lock)
-{
-	if (list.animIndex_ != idx) {
-		MV1DetachAnim(list.modelId_, list.animAttachNo_);
-		list.animIndex_ = idx;
-		list.animAttachNo_ = MV1AttachAnim(list.modelId_, list.animIndex_);
-		list.animTotalTime_ = MV1GetAttachAnimTotalTime(list.modelId_, list.animAttachNo_);
-		list.currentAnimTime_ = 0.0f;
-		MV1SetAttachAnimTime(list.modelId_, list.animAttachNo_, list.currentAnimTime_);
-		//ロック指定されたらフラグON
-		list.isAnimLock_ = lock;
+	//DrawSphere3D(GetRightHandPosition(), 30, 32, 0xffffff, 0xffffff, false);
+	if (list.isBoss_) {
+		// 敵の右手の位置を取得して球体をセット
+		VECTOR forward = VNorm(VGet(-sinf(GetRotY()), 0.0f, -cosf(GetRotY())));
+		VECTOR rightattackCenter = VAdd(GetRightHandPosition(), VScale(forward, 50.0f));
+		VECTOR leftattackCenter = VAdd(GetLeftHandPosition(), VScale(forward, 50.0f));
+
+		DrawSphere3D(rightattackCenter, 100.0f, 32, 0xffffff, 0xffffff, false);
+		DrawSphere3D(leftattackCenter, 100.0f, 32, 0xffffff, 0xffffff, false);
+
+	}
+	if (GetTransformPosition(&worldPos, &screenX, &screenY) == 0)
+	{
+		const int BAR_WIDTH = 40;
+		const int BAR_HEIGHT = 5;
+
+		// HPバー描画
+		float hpRatio = (float)list.hp_ / list.maxHp_;
+		if (hpRatio < 0.0f) hpRatio = 0.0f;
+		if (hpRatio > 1.0f) hpRatio = 1.0f;
+
+		int barX = static_cast<int>(screenX) - BAR_WIDTH / 2;
+		int barY = static_cast<int>(screenY) - BAR_HEIGHT / 2;
+
+		// 背景バー（グレー）
+		DrawBox(barX, barY, barX + BAR_WIDTH, barY + BAR_HEIGHT, GetColor(80, 80, 80), TRUE);
+		// HPバー（赤）
+		DrawBox(barX, barY, barX + (int)(BAR_WIDTH * hpRatio), barY + BAR_HEIGHT, GetColor(255, 0, 0), TRUE);
+		// デバッグ表示
+		DrawFormatString(0, 600, GetColor(255, 255, 255), "敵HP：%d / %d", list.hp_, list.maxHp_);
+		DrawFormatString(0, 630, GetColor(255, 255, 255), "敵攻撃力：%d", list.attackPower_);
 	}
 }

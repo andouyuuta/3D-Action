@@ -49,6 +49,11 @@ void GameOver::Update(void)
 	{
 		gameFlg_ = false;
 	}
+
+	if (ins.IsPadBtnTrgDown(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN) || ins.IsTrgDown(KEY_INPUT_SPACE))
+	{
+		SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::TITLE);
+	}
 	
 	if (mousePos_.x >= 600 && mousePos_.x <= 760 && mousePos_.y >= 330 && mousePos_.y <= 346)
 	{

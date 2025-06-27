@@ -4,12 +4,6 @@
 class Stage
 {
 public:
-
-	// インスタンスの生成
-	static void CreateInstance(void);
-	// インスタンスの取得
-	static Stage& GetInstance(void);
-
 	Stage();		// コンストラクタ
 	~Stage();		// デストラクタ
 
@@ -26,14 +20,8 @@ public:
 		VECTOR scale_;
 	};
 
-	int GetStageModel(void) { return list.model_; }
+	[[nodiscard]] int GetStageModel(void) { return list.model_; }
 
 private:
-	// 静的インスタンス
-	static Stage* instance_;
-
 	Info list;
-
-	void PlayerToStageCollision(void);
 };
-

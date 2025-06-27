@@ -6,14 +6,22 @@
 
 Camera::Camera(void)
 {
+	angles_ = { 0.0f,0.0f,0.0f };
+	followPlayer_ = nullptr;
+	localPosFormPlayer_ = { 0.0f,0.0f,0.0f };
+	player_ = nullptr;
+	pos_ = { 0.0f,0.0f,0.0f };
+
 }
 
 Camera::~Camera(void)
 {
 }
 
-void Camera::Init(void)
+void Camera::Init(Player* player)
 {
+	followPlayer_ = player;
+
 	// カメラの初期位置
 	pos_ = { 0.0f, 0.0f, 0.0f };
 
@@ -30,11 +38,18 @@ void Camera::Init(void)
 	nowMousePos_ = { 0, 0 };
 }
 
+
 void Camera::Update(void)
 {
 }
 
 void Camera::GameUpdate(void)
+{
+	MouseUpdate();
+	PadUpdate();
+}
+
+void Camera::MouseUpdate(void)
 {
 	// 入力制御取得
 	InputManager& ins = InputManager::GetInstance();
@@ -44,7 +59,7 @@ void Camera::GameUpdate(void)
 
 	// カメラの設定(位置と角度による制御)
 	VECTOR UP_VECTOR = { 0.0f, 1.0f, 0.0f };
-	VECTOR followPos = Player::GetInstance().GetPlayerPos();
+	VECTOR followPos = followPlayer_->GetPlayerPos();
 	VECTOR Localpos_ = VAdd(followPos, localPosFormPlayer_);
 	SetCameraPositionAndTargetAndUpVec(
 		Localpos_,
@@ -79,7 +94,7 @@ void Camera::GameUpdate(void)
 	if (angles_.x < MIN_PITCH) angles_.x = MIN_PITCH;
 
 	// マウスを画面中央にリセット
-	SetMousePoint(screenCenter.x, screenCenter.y);
+	SetMousePoint(static_cast<int>(screenCenter.x), static_cast<int>(screenCenter.y));
 
 	// 単位行列を取得
 	MATRIX mat = MGetIdent();
@@ -107,6 +122,59 @@ void Camera::GameUpdate(void)
 	);
 }
 
+void Camera::PadUpdate(void)
+{
+	// 入力制御取得
+	InputManager& ins = InputManager::GetInstance();
+	InputManager::JOYPAD_IN_STATE pad = ins.GetJPadInputState(InputManager::JOYPAD_NO::PAD1);
+
+	// クリップ距離を設定する
+	SetCameraNearFar(5.0f, 30000.0f);
+
+	// カメラのUPベクトル
+	VECTOR UP_VECTOR = { 0.0f, 1.0f, 0.0f };
+	VECTOR followPos = followPlayer_->GetPlayerPos();
+
+	// マウス感度 → ゲームパッド用の感度に置き換え
+	float padSensi = 0.03f;  // 感度調整（必要に応じてチューニング）
+
+	// ゲームパッドのスティック入力を正規化
+	float lx = pad.AKeyRX / 1000.0f;  // 左右
+	float ly = pad.AKeyRY / 1000.0f;  // 上下（使うなら）
+
+	// 角度の制限（特に垂直方向）
+	const float MAX_PITCH = DX_PI_F / 4.0f/* - 0.01f*/;
+	const float MIN_PITCH = -DX_PI_F / 12.0f /*+ 0.01f*/;
+
+	// 左スティックでカメラの回転制御
+	angles_.y += lx * padSensi;  // 水平回転
+	angles_.x += ly * padSensi;  // 垂直回転（上下逆にする場合は `-ly`）
+
+	// 垂直回転の制限
+	if (angles_.x > MAX_PITCH) angles_.x = MAX_PITCH;
+	if (angles_.x < MIN_PITCH) angles_.x = MIN_PITCH;
+
+	// 単位行列
+	MATRIX mat = MGetIdent();
+	MATRIX matRotX = MGetRotX(angles_.x);
+	MATRIX matRotY = MGetRotY(angles_.y);
+
+	mat = MMult(mat, matRotX);
+	mat = MMult(mat, matRotY);
+
+	// カメラの位置更新
+	VECTOR localPos = VTransform(localPosFormPlayer_, mat);
+	pos_ = VAdd(followPos, localPos);
+
+	// カメラの設定
+	SetCameraPositionAndAngle(
+		pos_,
+		angles_.x,
+		angles_.y,
+		angles_.z
+	);
+}
+
 // カメラ設定（毎フレーム実行）
 void Camera::SetBeforeDraw(void)
 {
@@ -126,7 +194,9 @@ void Camera::Draw(void)
 {
 	InputManager& ins = InputManager::GetInstance();
 	Vector2 mousePos_ = ins.GetMousePos();
-
+	VECTOR playerPos = followPlayer_ ? followPlayer_->GetPlayerPos() : VGet(0, 0, 0);
+	DrawFormatString(20, 320, GetColor(255, 255, 255), "CameraPos: x=%.2f y=%.2f z=%.2f", pos_.x, pos_.y, pos_.z);
+	DrawFormatString(20, 340, GetColor(255, 255, 255), "PlayerPos: x=%.2f y=%.2f z=%.2f", playerPos.x, playerPos.y, playerPos.z);
 	DrawFormatString(20, 40, GetColor(0xff, 0xff, 0xff), "MousePosX = %d", mousePos_.x);
 	DrawFormatString(20, 60, GetColor(0xff, 0xff, 0xff), "MousePosY = %d", mousePos_.y);
 }

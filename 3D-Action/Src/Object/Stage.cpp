@@ -1,20 +1,4 @@
 #include "Stage.h"
-#include "Player.h"
-
-Stage* Stage::instance_ = nullptr;
-
-void Stage::CreateInstance()
-{
-	if (instance_ == nullptr)
-	{
-		instance_ = new Stage();
-	}
-}
-
-Stage& Stage::GetInstance(void)
-{
-	return *instance_;
-}
 
 Stage::Stage()
 {
@@ -61,15 +45,4 @@ void Stage::Draw(void)
 void Stage::Release(void)
 {
 	MV1DeleteModel(list.model_);
-}
-
-//プレイヤーとステージの当たり判定
-void Stage::PlayerToStageCollision(void)
-{
-	//プレイヤーの座標から縦のカプセル
-	VECTOR playerpos = Player::GetInstance().GetPlayerPos();
-	VECTOR capsulelow = playerpos;
-	VECTOR capsulehigh = playerpos;
-	capsulehigh.y += 100.0f;
-	MV1CollCheck_Capsule(list.model_, -1, playerpos, capsulehigh, 100.0f);
 }

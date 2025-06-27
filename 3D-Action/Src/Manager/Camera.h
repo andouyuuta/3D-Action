@@ -19,9 +19,11 @@ public:
 	Camera(void);
 	~Camera(void);
 
-	void Init(void);
+	void Init(Player* player);
 	void Update(void);
 	void GameUpdate(void);
+	void MouseUpdate(void);
+	void PadUpdate(void);
 	void SetBeforeDraw(void);
 	void Draw(void);
 	void Release(void);
@@ -54,5 +56,7 @@ private:
 	// カーソルの位置
 	Vector2 prevMousePos_;
 	Vector2 nowMousePos_;
+
+	Player* player_;
 };
 
