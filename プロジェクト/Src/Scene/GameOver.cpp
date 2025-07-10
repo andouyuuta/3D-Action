@@ -10,6 +10,7 @@
 // コンストラクタ
 GameOver::GameOver(void) : SceneBase()
 {
+	overImg_ = -1;
 	waitFrame_ = 0;
 }
 
@@ -21,6 +22,8 @@ GameOver::~GameOver(void)
 // 初期化
 void GameOver::Init(void)
 {
+	overImg_ = LoadGraph("Data/Image/Gameover.png");
+
 	// 画像の読み込み
 	hightLight_ = LoadGraph("Data/Image/hightLight.png");
 
@@ -48,13 +51,16 @@ void GameOver::Update(void)
 	if (ins.IsPadBtnTrgDown(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN) || ins.IsTrgDown(KEY_INPUT_SPACE) ||
 		ins.IsTrgMouseLeft())
 	{
-		SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::GAME);
+		SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::TITLE);
 	}
 }
 
 // 描画
 void GameOver::Draw(void)
 {
+	// タイトル画像の描画
+	DrawExtendGraph(0, 0, Application::SCREEN_SIZE_X, Application::SCREEN_SIZE_Y, overImg_, true);
+
 	// 透過素材の描画
 	if (gameFlg_)
 	{
@@ -67,13 +73,17 @@ void GameOver::Draw(void)
 	}
 
 	// 文字の描画
-	DrawFormatString(20, 20, GetColor(0xff, 0xff, 0xff), "ゲームオーバー画面");
-	DrawFormatString(300, 300, GetColor(0xff, 0xff, 0xff), "左クリックやスペース、Aボタンでタイトルに");
+	DrawFormatString(600, 500, GetColor(0xff, 0xff, 0xff), "左クリックやスペース、Aボタンでタイトルに");
 }
 
 // 解放
 void GameOver::Release(void)
 {
 	// 画像の解放
+	DeleteGraph(overImg_);
+	overImg_ = -1;
+
+	// 画像の解放
 	DeleteGraph(hightLight_);
+	hightLight_ = -1;
 }

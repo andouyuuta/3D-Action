@@ -10,9 +10,13 @@ public:
 	static constexpr float WALK_START = 0.05f;	// “®‚«n‚ß‚é”»’è
 	static constexpr float WALK_STOP = 0.02f;	// ~‚Ü‚Á‚½”»’è
 	// “G‚ÌÅ‘åHP
-	int ENEMY_MAX_HP = 300;
+	static constexpr int ENEMY_MAX_HP = 300;
 	// “G‚ÌÅ‘åUŒ‚—Í
-	int AttackPower_ = 40;
+	static constexpr int AttackPower_ = 50;
+
+	// “G‚ÌƒtƒF[ƒY‚²‚Æ‚Ì‹­‰»
+	static constexpr int Reinforcement_HP = 250;				// HP
+	static constexpr int Reinforcement_Attack = 20;				// UŒ‚—Í
 
 	// “G‚Ìî•ñ‚Ì\‘¢‘Ì
 	struct Info
@@ -72,10 +76,10 @@ public:
 	[[nodiscard]] VECTOR GetRightHandPosition(void);
 	[[nodiscard]] VECTOR GetLeftHandPosition(void);
 	[[nodiscard]] bool GetAttackFlg(void) { return list.isAttack_; }
-	//struct Info GetInfo(void) { return list; }
 	[[nodiscard]] bool GetIsBoss(void)const { return list.isBoss_; }
 	[[nodiscard]] int GetAttackPower(void)const { return list.attackPower_; }	// “G‚ÌUŒ‚—Í
 	[[nodiscard]] bool GetIsAssign(void) { return list.isAssign_; }
+	[[nodiscard]] int GetMaxHp(void) { return list.maxHp_; }
 
 	// ƒZƒbƒ^[ŠÖ”
 	void SetEnemyPos(const VECTOR& pos);		// “G‚ÌÀ•W‚Ìİ’è

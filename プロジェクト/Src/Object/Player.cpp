@@ -3,6 +3,9 @@
 #include "../Manager/SceneManager.h"
 #include "../Manager/Camera.h"
 #include "../Manager/AnimationManager.h"
+#include "../Manager/MoviePlayer.h"
+#include "../Manager/RandomManager.h"
+#include "../Manager/SoundManager.h"
 #include "../Application.h"
 #include "Player.h"
 #include "Sword.h"
@@ -41,9 +44,6 @@ Player::Player(void)
 	invincibleTime_ = 0.0f;
 	showCriticalText_ = false;
 
-	enemymng_ = nullptr;
-	animation_ = nullptr;
-
 	list.criticalRate_ = 10.0f;
 	list.criticalDamage = 1.5f;
 
@@ -51,6 +51,16 @@ Player::Player(void)
 	isDamaged_=false;
 
 	list.flashCounter_ = 0.0f;
+
+	list.ultFlg_ = false;
+	list.isUltFinish_ = false;
+	list.ultEndTime_ = 0;
+
+	isUltPlaydOnce_ = false;
+
+	enemymng_ = nullptr;
+	animation_ = nullptr;
+	camera_ = nullptr;
 }
 
 // デストラクタ
@@ -67,6 +77,8 @@ void Player::Init(EnemyManager* mng, AnimationManager* anim,Camera* camera)
 
 	// モデルの読み込み
 	list.modelId_ = MV1LoadModel("Data/Model/PlayerModel.mv1");
+	list.ultHandle_ = LoadGraph("Data/Movie/Ult.avi");
+	list.ultFlg_ = false;
 
 	// プレイヤーの初期位置設定
 	list.pos_ = { 0.0f, 0.0f, -550.0f };
@@ -122,6 +134,8 @@ void Player::Init(EnemyManager* mng, AnimationManager* anim,Camera* camera)
 
 	list.dashCount_ = 0.0f;
 
+	list.isUltUse_ = false;
+
 	// 無敵時間の残り時間(秒)
 	invincibleTime_ = 0.0f;
 
@@ -136,11 +150,24 @@ void Player::Init(EnemyManager* mng, AnimationManager* anim,Camera* camera)
 	criticalFontHandle_ = CreateFontToHandle("メイリオ", 64, 5, DX_FONTTYPE_ANTIALIASING_EDGE);
 
 	MV1SetupCollInfo(list.modelId_);
+
+	// シングルトンの呼び出し
+	SoundManager* seMana_ = SoundManager::GetInstance();
+
+	// SEのロード
+	seMana_->LoadSE("Walk", (Application::PATH_SOUND + "SE/walk_on_gravel.mp3").c_str(), false);
+	seMana_->LoadSE("Run", (Application::PATH_SOUND + "SE/run_on_gravel.mp3").c_str(), false);
+	seMana_->LoadSE("Sheathe_the_sword", (Application::PATH_SOUND + "SE/Sheathe the sword.mp3").c_str(), false);
+	seMana_->LoadSE("Contain", (Application::PATH_SOUND + "SE/contain.mp3").c_str(), false);
+
 }
 
 void Player::Update(float deltaTime)
 {
 	IsDamagedThisFrame_ = false;	
+
+	// シングルトンの呼び出し
+	SoundManager* seMana_ = SoundManager::GetInstance();
 
 	// 無敵時間のカウント
 	if (list.isInvincible_) 
@@ -175,6 +202,40 @@ void Player::Update(float deltaTime)
 	UpdateMove();
 	SetRotation();
 	MV1RefreshCollInfo(list.modelId_);
+
+	// SEの座標の設定
+	seMana_->SetPosSE("Walk", list.pos_);
+	seMana_->SetPosSE("Run", list.pos_);
+	seMana_->SetPosSE("Sheathe_the_sword", list.pos_);
+	seMana_->SetPosSE("Contain", list.pos_);
+	// SEの聞こえる範囲
+	seMana_->SetAreaSE("Walk", 500.0f);
+	seMana_->SetAreaSE("Run", 500.0f);
+	seMana_->SetAreaSE("Sheathe_the_sword", 300.0f);
+	seMana_->SetAreaSE("Contain", 300.0f);
+	// SEの音量設定
+	seMana_->SetVolumeSE("Walk", 300);
+	seMana_->SetVolumeSE("Run", 200);
+	seMana_->SetVolumeSE("Sheathe_the_sword", 300);
+	seMana_->SetVolumeSE("Contain", 300);
+}
+
+void Player::MovieUpdate(void)
+{
+	// Ult映像再生中の終了チェック
+	if (list.IsUltPlay_)
+	{
+		if (GetMovieStateToGraph(list.ultHandle_) == 0) // 再生終了
+		{
+			list.IsUltPlay_ = false;
+			list.isUltUse_ = false;
+			list.isUltFinish_ = true;
+
+			SeekMovieToGraph(list.ultHandle_, 0);  // 巻き戻し
+			PauseMovieToGraph(list.ultHandle_);    // 停止
+		}
+		return;  // 再生中は他の処理をスキップ
+	}
 }
 
 // プレイヤー全体の動き
@@ -182,6 +243,9 @@ void Player::UpdateMove(void)
 {
 	// 入力制御取得
 	InputManager& ins = InputManager::GetInstance();
+
+	// シングルトンの呼び出し
+	SoundManager* seMana_ = SoundManager::GetInstance();
 
 	// 常に高さを０に設定
 	if (list.pos_.y != 0.0f)
@@ -193,7 +257,10 @@ void Player::UpdateMove(void)
 	if (list.isDead_)
 	{
 		list.moveSpeed_ = MOVE_SPEED_STOP;
-		animation_->PlayerChangeAnimation(animation_->Death);								// 死亡アニメーション
+		animation_->PlayerChangeAnimation(animation_->Death);		// 死亡アニメーション
+		// SEの停止
+		seMana_->StopSE("Walk");
+		seMana_->StopSE("Run");
 		return;
 	}
 
@@ -201,6 +268,9 @@ void Player::UpdateMove(void)
 	if (list.isImpact_)
 	{
 		list.moveSpeed_ = MOVE_SPEED_STOP;
+		// SEの停止
+		seMana_->StopSE("Walk");
+		seMana_->StopSE("Run");
 		return;
 	}
 
@@ -211,16 +281,22 @@ void Player::UpdateMove(void)
 	}
 
 	// 右クリック押したら武器切り替え
-	if (ins.IsTrgMouseRight()||ins.IsPadBtnTrgDown(InputManager::JOYPAD_NO::PAD1,InputManager::JOYPAD_BTN::L_TRIGGER))
+	if (ins.IsTrgMouseRight() || ins.IsPadBtnTrgDown(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::L_TRIGGER))
 	{
 		list.isWeapon_ = !list.isWeapon_;											// 今のフラグと反対のフラグを代入
 		if (list.isWeapon_)
 		{
+			// SEの再生
+			seMana_->PlaySE("Sheathe_the_sword");
 			animation_->PlayerChangeAnimation(animation_->WeaponOut, true);				//武器取り出し
 		}
-		else {
+		else 
+		{
+			// SEの再生 
+			seMana_->PlaySE("Contain");
 			animation_->PlayerChangeAnimation(animation_->Sheach, true);					//武器しまう
 		}
+		
 		return;
 	}
 
@@ -268,7 +344,6 @@ void Player::Draw(void)
 	// クリティカル表示
 	if (showCriticalText_)
 	{
-
 		// 表示時間に応じて透明度を変える
 		// 時間がたつほど透明になってフェードアウトさせる
 		int alpha = (int)(255.0f * (criticalDisplayTime_ / 180.0f)); // 最大3秒の残り時間で調整
@@ -298,7 +373,14 @@ void Player::Draw(void)
 		// ブレンドモード解除
 		SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
 	}
-	//DrawDebug();
+}
+
+void Player::MovieDraw(void)
+{
+	if (list.IsUltPlay_ && list.isUltUse_ && !list.isUltFinish_)
+	{
+		DrawExtendGraph(0, 0, Application::SCREEN_SIZE_X, Application::SCREEN_SIZE_Y, list.ultHandle_, false);
+	}
 }
 
 // 解放
@@ -306,6 +388,21 @@ void Player::Release(void)
 {
 	MV1DeleteModel(list.modelId_);
 	DeleteFontToHandle(criticalFontHandle_);	// フォントの解放
+	DeleteGraph(list.ultHandle_);
+
+	// シングルトンの呼び出し
+	SoundManager* seMana_ = SoundManager::GetInstance();
+	// SEの停止
+	seMana_->StopSE("Walk");
+	seMana_->StopSE("Run");
+	seMana_->StopSE("Sheathe_the_sword");
+	seMana_->StopSE("Contain");
+
+	// SEの解放
+	seMana_->ReleaseSound("Walk");
+	seMana_->ReleaseSound("Run");
+	seMana_->ReleaseSound("Sheathe_the_sword");
+	seMana_->ReleaseSound("Contain");
 }
 
 // 動いているか
@@ -356,10 +453,21 @@ void Player::SetRotation(void)
 	MV1SetRotationMatrix(list.modelId_, mat);
 }
 
+// ウルトが使用可能かどうかの判定
+void Player::EnableUlt()
+{
+	if (isUltPlaydOnce_) return;	// すでに使ってたら再度許可しない
+	list.isUltUse_ = true;
+	list.isUltFinish_ = false;
+}
+
 // しゃがみ更新
 bool Player::CrouchUpdate(void)
 {
 	InputManager& ins = InputManager::GetInstance();
+
+	// シングルトンの呼び出し
+	SoundManager* seMana_ = SoundManager::GetInstance();
 
 	//左コントロールでしゃがみ
 	if (ins.IsNew(KEY_INPUT_LCONTROL)||ins.IsPadBtnNew(InputManager::JOYPAD_NO::PAD1,InputManager::JOYPAD_BTN::R_BUTTON))
@@ -371,6 +479,9 @@ bool Player::CrouchUpdate(void)
 			list.isAttack_ = false;
 			list.moveSpeed_ = MOVE_SPEED_STOP;		// 動きを止める
 			animation_->PlayerChangeAnimation(animation_->Crouch, true);			// しゃがみ再生
+			// SEの停止
+			seMana_->StopSE("Walk");
+			seMana_->StopSE("Run");
 			return true;
 		}
 
@@ -378,6 +489,9 @@ bool Player::CrouchUpdate(void)
 		if (!animation_->GetPlayerInfo().isAnimLock_)
 		{
 			animation_->PlayerChangeAnimation(animation_->Crouch_Idle);			// しゃがみ待機
+			// SEの停止
+			seMana_->StopSE("Walk");
+			seMana_->StopSE("Run");
 		}
 
 		return true;	//しゃがみ中
@@ -396,6 +510,30 @@ bool Player::AttackUpdate(void)
 {
 	InputManager& ins = InputManager::GetInstance();
 
+	// シングルトンの呼び出し
+	SoundManager* seMana_ = SoundManager::GetInstance();
+
+	// 必殺技は一回しか発動させない
+	if (list.isUltUse_ && !isUltPlaydOnce_ &&
+		(ins.IsTrgDown(KEY_INPUT_R) ||
+			ins.IsPadBtnTrgDown(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::RIGHT)))
+	{
+		list.ultFlg_ = true;
+		PlayMovieToGraph(list.ultHandle_, DX_PLAYTYPE_NORMAL);
+		list.IsUltPlay_ = true;
+		list.isUltFinish_ = false;
+
+		// SEの停止
+		seMana_->StopSE("Walk");
+		seMana_->StopSE("Run");
+
+		// ここで一度使用済みにする
+		// ここでロック
+		isUltPlaydOnce_ = true;
+
+		return true;
+	}
+
 	// 攻撃していない状態で、左クリックを押したとき or 右トリガー押したとき
 	if (!list.isAttack_ && (ins.IsTrgMouseLeft()||		
 		ins.IsPadBtnTrgDown(InputManager::JOYPAD_NO::PAD1,InputManager::JOYPAD_BTN::LEFT)))
@@ -404,6 +542,9 @@ bool Player::AttackUpdate(void)
 		list.comboStep_ = 1;					// コンボ段階を１に
 		list.isCombo_ = false;					// コンボ中をtrueに
 		animation_->PlayerChangeAnimation(animation_->First_Attack, true);
+		// SEの停止
+		seMana_->StopSE("Walk");
+		seMana_->StopSE("Run");
 		return true;
 	}
 
@@ -460,12 +601,12 @@ void Player::TakeDamage(int damage)
 		list.isInvincible_ = true;
 		if (animation_->GetPlayerInfo().animIndex_ == animation_->Crouch_Guard)
 		{
-			SetInvincibleTime(3.0f);
+			SetInvincibleTime(1.0f);
 			animation_->PlayerChangeAnimation(animation_->Crouch_Guard, true);
 		}
 		else
 		{
-			SetInvincibleTime(5.0f);								// 無敵時間を5秒に設定
+			SetInvincibleTime(2.0f);								// 無敵時間を5秒に設定
 			animation_->PlayerChangeAnimation(animation_->Impact, true);  // ダメージアニメーション再生
 		}
 
@@ -476,6 +617,9 @@ void Player::TakeDamage(int damage)
 void Player::PlayerMove(int idle, int walk, int run)
 {
 	InputManager& ins = InputManager::GetInstance();
+
+	// シングルトンの呼び出し
+	SoundManager* seMana_ = SoundManager::GetInstance();
 
 	// WASDでプレイヤー移動
 	list.moveVec_ = { 0.0f, 0.0f, 0.0f };
@@ -513,6 +657,8 @@ void Player::PlayerMove(int idle, int walk, int run)
 
 		if (list.dashCount_ >= 100.0f)
 		{
+			seMana_->StopSE("Walk");
+			seMana_->PlaySE("Run");
 			// ダッシュ状態
 			list.moveSpeed_ = MOVE_SPEED_RUN;
 			animation_->PlayerChangeAnimation(run);
@@ -520,6 +666,8 @@ void Player::PlayerMove(int idle, int walk, int run)
 		}
 		else
 		{
+			seMana_->StopSE("Run");
+			seMana_->PlaySE("Walk");
 			// 歩き状態
 			list.moveSpeed_ = MOVE_SPEED_WALK;
 			animation_->PlayerChangeAnimation(walk);
@@ -552,6 +700,8 @@ void Player::PlayerMove(int idle, int walk, int run)
 		{
 			animation_->PlayerChangeAnimation(idle);
 		}
+		seMana_->StopSE("Walk");
+		seMana_->StopSE("Run");
 	}
 }
 
@@ -572,9 +722,13 @@ void Player::HitStop(void)
 }
 
 // 全回復
-void Player::FullRecoveryHp()
+void Player::HalfHeal()
 {
-	list.hp_ = PlayerMaxHp_; // 最大値にする（もしMaxHPが増えているならその変数で）
+	list.hp_ += PlayerMaxHp_/2; // 最大値にする（もしMaxHPが増えているならその変数で）
+	if (list.hp_ > PlayerMaxHp_)
+	{
+		list.hp_ = PlayerMaxHp_;
+	}
 }
 
 // 攻撃力を上げる
@@ -604,4 +758,13 @@ void Player::SetCriticalDisplay(bool enable)
 	{
 		criticalDisplayTime_ = 180.0f;  // 表示を3秒間
 	}
+}
+
+void Player::Revive(void)
+{
+	list.hp_ = GetMaxHp() / 2;
+	list.isDead_ = false;
+	list.isInvincible_ = true;
+	list.isRevive_ = true;
+	SetInvincibleTime(3.0f);
 }

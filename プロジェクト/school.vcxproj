@@ -19,10 +19,13 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Src\Manager\MoviePlayer.cpp" />
+    <ClCompile Include="Src\UI\HpBar_.cpp" />
+    <ClCompile Include="Src\UI\EnemyHpBar.cpp" />
     <ClCompile Include="Src\Manager\BuffDataManager.cpp" />
     <ClCompile Include="Src\UI\Buff.cpp" />
     <ClCompile Include="Src\Manager\SoundManager.cpp" />
-    <ClCompile Include="Src\UI\HpBar.cpp" />
+    <ClCompile Include="Src\UI\PlayerHpBar.cpp" />
     <ClCompile Include="Src\Manager\AnimationManager.cpp" />
     <ClCompile Include="Src\Object\Base\ObjectBase.cpp" />
     <ClCompile Include="Src\Manager\RandomManager.cpp" />
@@ -53,10 +56,13 @@
     <ClCompile Include="Src\UI\UIBase.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Src\Manager\MoviePlayer.h" />
+    <ClInclude Include="Src\UI\HpBar_.h" />
+    <ClInclude Include="Src\UI\EnemyHpBar.h" />
     <ClInclude Include="Src\Manager\BuffDataManager.h" />
     <ClInclude Include="Src\UI\Buff.h" />
     <ClInclude Include="Src\Manager\SoundManager.h" />
-    <ClInclude Include="Src\UI\HpBar.h" />
+    <ClInclude Include="Src\UI\PlayerHpBar.h" />
     <ClInclude Include="Src\Manager\AnimationManager.h" />
     <ClInclude Include="Src\Object\Base\ObjectBase.h" />
     <ClInclude Include="Src\Manager\RandomManager.h" />

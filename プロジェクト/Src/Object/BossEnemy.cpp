@@ -4,6 +4,8 @@
 #include "Player.h"
 #include "../Manager/SceneManager.h"
 #include "../Manager/AnimationManager.h"
+#include "../Manager/SoundManager.h"
+#include "../Application.h"
 
 BossEnemy::BossEnemy(void)
 {
@@ -24,6 +26,7 @@ void BossEnemy::Init(int bossModelID, int hp, int attack, Player* player, Animat
     animInfo_ = animinfo;
     InitBossStats();
     list.isBoss_ = true;
+ 
 }
 //ボスのステータス変更
 void BossEnemy::InitBossStats(void)
@@ -42,6 +45,16 @@ void BossEnemy::Update(void)
     VECTOR toPlayer = VSub(player_->GetPlayerPos(), list.pos_);
     float dist = VSize(toPlayer);
 
+    // シングルトンの呼び出し
+    SoundManager* seMana_ = SoundManager::GetInstance();
+
+    // SEの座標の設定
+    seMana_->SetPosSE("Boss_walk", list.pos_);
+    // SEの聞こえる範囲
+    seMana_->SetAreaSE("Boss_walk", 500.0f);
+    // SEの音量設定
+    seMana_->SetVolumeSE("Boss_walk", 255);
+
     if (isJumpAttack_)
     {
         // animInfo_は敵個別のアニメーション情報なのでこちらを使う
@@ -53,16 +66,22 @@ void BossEnemy::Update(void)
 
         if (currentTime < jamptime)
         {
+            // SEの停止
+            seMana_->StopSE("Boss_walk");
             // ジャンプする前は移動なし
         }
         else if (currentTime <= landtime)
         {
+            // SEの停止
+            seMana_->StopSE("Boss_walk");
             // 空中移動フェーズ
             float moveRate = (currentTime - jamptime) / (landtime - jamptime);
             list.pos_ = VAdd(VScale(VSub(jumpEndPos_, jumpStartPos_), moveRate), jumpStartPos_);
         }
         else
         {
+            // SEの停止
+            seMana_->StopSE("Boss_walk");
             // 着地後
             list.pos_ = jumpEndPos_;
             list.pos_.y = 0.0f;
@@ -123,6 +142,17 @@ void BossEnemy::Draw(void)
     // ボスの描画ロジックが特別でなければそのままでOK
     Enemy::Draw();
     //DrawDebug();
+}
+
+// 解放処理
+void BossEnemy::Release(void)
+{
+    // シングルトンの呼び出し
+    SoundManager* seMana_ = SoundManager::GetInstance();
+    // SEの停止
+    seMana_->StopSE("Boss_walk");
+    // SEの解放
+    seMana_->ReleaseSound("Boss_walk");
 }
 
 void BossEnemy::DrawDebug(void)

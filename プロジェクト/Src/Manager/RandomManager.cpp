@@ -12,7 +12,7 @@ void RandomManager::Init()
 }
 
 // クリティカルが起きるかの判定
-bool RandomManager::Critical(float criticalRatePercent)
+bool RandomManager::Random(float criticalRatePercent)
 {
 	// dist(mt)は0.0～100.0の範囲のfloatをランダムに生成
 	// その値がcriticalRatePercent未満であればクリティカル判定

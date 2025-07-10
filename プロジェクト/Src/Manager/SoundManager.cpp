@@ -5,22 +5,22 @@ SoundManager* SoundManager::instance_ = nullptr;
 
 // コンストラクタ
 SoundManager::SoundManager()
-	: bgmHandle(-1)    // BGMハンドルの初期化
 {
 }
 
 // デストラクタ
 SoundManager::~SoundManager()
 {
-	// SEハンドルの削除
-	for (auto& se : seHandles)
-	{
-		// 有効ハンドルのみの削除
-		if (se.second != -1)DeleteSoundMem(se.second);
-	}
+	//// SEハンドルの削除
+	//for (auto& se : seHandles)
+	//{
+	//	// 有効ハンドルのみの削除
+	//	if (se.second != -1)DeleteSoundMem(se.second);
+	//}
 
-	// BGMハンドルの削除
-	if (bgmHandle != -1)DeleteSoundMem(bgmHandle);	// 削除
+	//// BGMハンドルの削除
+	//if (bgmHandle != -1)DeleteSoundMem(bgmHandle);	// 削除
+	ReleaseAll();
 }
 
 // クリエイトインスタンス
@@ -52,7 +52,6 @@ void SoundManager::DeleteInstance()
 
 // コピーコンストラクタ
 SoundManager::SoundManager(const SoundManager& other)
-	: bgmHandle(-1)
 {
 }
 
@@ -167,7 +166,7 @@ bool SoundManager::IsPlayingSE(const std::string& seName)
 	return false;
 }
 
-// 効果音の聞こえる範囲を設定
+// 効果音の聞こえる位置を設定
 void SoundManager::SetPosSE(const std::string& key, VECTOR vec)
 {
 	auto se = seHandles.find(key);	// 効果音をマップから検索
@@ -205,6 +204,10 @@ void SoundManager::ReleaseSound(const std::string& key)
 	{
 		DeleteSoundMem(se->second); // 音量の設定
 	}
+}
+
+void SoundManager::ReleaseAll(void)
+{
 }
 
 // 3D空間の１メートルに相当する距離の設定

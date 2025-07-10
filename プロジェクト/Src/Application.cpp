@@ -35,11 +35,12 @@ Application& Application::GetInstance(void)
 void Application::Init(void)
 {
 	// アプリケーションの初期設定
-	SetWindowText("School");
+	SetWindowText("剣武檄");
 
 	// ウィンドウサイズ
 	SetGraphMode(SCREEN_SIZE_X, SCREEN_SIZE_Y, 32);
 	ChangeWindowMode(true);
+
 
 	// DxLibの初期化
 	SetUseDirect3DVersion(DX_DIRECT3D_11);
@@ -61,6 +62,7 @@ void Application::Init(void)
 
 	// SE管理の初期化
 	SoundManager::CreateInstance();
+	
 
 	// シーン管理初期化
 	SceneManager::CreateInstance();
@@ -108,8 +110,8 @@ void Application::Run(void)
 void Application::Release(void)
 {
 	// SE管理の解放処理
-	SoundManager* soundMng = SoundManager::GetInstance();
-	soundMng->DeleteInstance();
+	SoundManager* seMana_ = SoundManager::GetInstance();
+	seMana_->DeleteInstance();
 
 	// DxLib終了
 	if (DxLib_End() == -1)

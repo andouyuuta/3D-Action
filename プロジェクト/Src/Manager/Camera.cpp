@@ -203,6 +203,18 @@ void Camera::Draw(void)
 
 void Camera::Release(void)
 {
+	// プレイヤー参照を切る（無効化）
+	followPlayer_ = nullptr;
+	player_ = nullptr;
+
+	// 座標・角度を初期化
+	pos_ = VGet(0.0f, 0.0f, 0.0f);
+	angles_ = VGet(0.0f, 0.0f, 0.0f);
+	localPosFormPlayer_ = VGet(0.0f, 0.0f, 0.0f);
+
+	// マウス座標も初期化
+	prevMousePos_ = { 0, 0 };
+	nowMousePos_ = { 0, 0 };
 }
 
 void Camera::SetPlayer(Player* _player)

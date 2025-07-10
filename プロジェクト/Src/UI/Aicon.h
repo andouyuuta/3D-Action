@@ -6,7 +6,7 @@ class Player;
 class Aicon
 {
 public:
-	static constexpr int MAX_ICON = 4;
+	static constexpr int MAX_ATTACK_ICON = 4;
 	enum WEAPON_AICON
 	{
 		Sheach = 0,			// 武器しまう
@@ -26,6 +26,18 @@ public:
 		Attack_Kind
 	};
 
+	enum XBOX_BUTTON
+	{
+		A=0,				// A
+		B,					// B
+		X,					// X
+		Y,					// Y
+		LT,					// LT
+		RB,					// RB
+
+		Pad_Kind
+	};
+
 	Aicon();
 	~Aicon();
 
@@ -37,6 +49,12 @@ public:
 private:
 	int weaponIcon_[Weapon_Kind];
 	int attackIcon_[Attack_Kind];
-
+	int padIcon_[Pad_Kind];
+	const int ltSize = 30;
 	Player* player_;
+
+	// ウルト用
+	const int ultSize = 80;
+	const int ultX = 20;  // 左から20pxの余白
+
 };

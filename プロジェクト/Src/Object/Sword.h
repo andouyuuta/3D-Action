@@ -20,8 +20,8 @@ public:
 		VECTOR rightHandPos_;
 	};
 
-	Sword();
-	~Sword();
+	Sword(void);
+	~Sword(void);
 
 	void Init(Player* player);
 	void Update(void);

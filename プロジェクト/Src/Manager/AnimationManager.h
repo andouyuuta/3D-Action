@@ -15,29 +15,31 @@ public:
 
 	void Init(Player* player, EnemyManager* enemymng);
 	void Update(void);
+	void Release(void);
 	enum PlayerAnim
 	{
-		NoWeaponIdle = 0,		//•Ší‚È‚µ‘Ò‹@
-		NoWeaponWalk,			//•Ší‚È‚µ•à‚«
-		NoWeaponRun,			//•Ší‚È‚µ‘–‚è
-		WeaponOut,				//•Šíæ‚èo‚µ	
-		Sheach,					//•Ší–ß‚·
-		WeaponIdle,				//•Ší‚ ‚è‘Ò‹@
-		WeaponWalk,				//•Ší‚ ‚è•à‚«
-		WeaponRun,				//•Ší‚ ‚è‘–‚è
-		Strafe,					//‰¡•à‚«
-		Jump,					//ƒWƒƒƒ“ƒv
-		Crouch,					//‚µ‚á‚ª‚İ
-		Crouch_Cancel,			//‚µ‚á‚ª‚İ‰ğœ
-		Crouch_Idle,			//‚µ‚á‚ª‚İ‘Ò‹@
-		Crouch_Guard,			//‚µ‚á‚ª‚İ–hŒä
+		NoWeaponIdle = 0,		// •Ší‚È‚µ‘Ò‹@
+		NoWeaponWalk,			// •Ší‚È‚µ•à‚«
+		NoWeaponRun,			// •Ší‚È‚µ‘–‚è
+		WeaponOut,				// •Šíæ‚èo‚µ	
+		Sheach,					// •Ší–ß‚·
+		WeaponIdle,				// •Ší‚ ‚è‘Ò‹@
+		WeaponWalk,				// •Ší‚ ‚è•à‚«
+		WeaponRun,				// •Ší‚ ‚è‘–‚è
+		Strafe,					// ‰¡•à‚«
+		Jump,					// ƒWƒƒƒ“ƒv
+		Crouch,					// ‚µ‚á‚ª‚İ
+		Crouch_Cancel,			// ‚µ‚á‚ª‚İ‰ğœ
+		Crouch_Idle,			// ‚µ‚á‚ª‚İ‘Ò‹@
+		Crouch_Guard,			// ‚µ‚á‚ª‚İ–hŒä
 		Crouch_Attack,
-		First_Attack,			//UŒ‚‚P
-		Force_Attack,			//UŒ‚‚S
-		Second_Attack,			//UŒ‚‚Q
-		Third_Attack,			//UŒ‚‚R
-		Death,					//€–S
-		Impact,					//UŒ‚ó‚¯‚½‚Æ‚«
+		First_Attack,			// UŒ‚‚P
+		Force_Attack,			// UŒ‚‚S
+		Second_Attack,			// UŒ‚‚Q
+		Third_Attack,			// UŒ‚‚R
+		Death,					// €–S
+		Impact,					// UŒ‚ó‚¯‚½‚Æ‚«
+		Revive					// •œŠˆ
 	};
 
 	enum EnemyAnim

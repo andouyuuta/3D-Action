@@ -2,13 +2,13 @@
 #include "Player.h"
 #include "../Application.h"
 #include "../Manager/InputManager.h"
+#include "../Manager/SoundManager.h"
 
 namespace
 {
 	// 移動量
 	const float MOVE_SPEED_WALK = 1.5f;				// 歩き
 	const float MOVE_BOSS_SPEED_WALK = 5.0f;		// ボス走る
-	const float MOVE_SPEED_RUN = 8.0f;				// 走る
 	const float MOVE_SPEED_STOP = 0.0f;
 	// 初期モデル補正角度
 	const VECTOR INIT_MODEL_ROT_OFFSET = { 0.0f,DX_PI_F / 2.0f,0.0f };
@@ -63,6 +63,10 @@ Enemy::~Enemy(void)
 // 初期化
 void Enemy::Init(int org, int hp, int attack, Player* player, AnimationManager* anim, AnimationManager::AnimationInfo* animinfo)
 {
+
+	// シングルトンの呼び出し
+	SoundManager* seMana_ = SoundManager::GetInstance();
+
 	player_ = player;
 	animation_ = anim;
 	animInfo_ = animinfo;
@@ -92,60 +96,69 @@ void Enemy::Init(int org, int hp, int attack, Player* player, AnimationManager* 
 	list.isDead_ = false;
 
 	list.isHitboxActive_ = false;
+
+	//SEのロード
+	seMana_->LoadSE("Voice", (Application::PATH_SOUND + "SE/Zombie_voice.mp3").c_str(), false);
+	seMana_->LoadSE("ZB_Attack", (Application::PATH_SOUND + "SE/Zombie_attack.mp3").c_str(), false);
+	seMana_->LoadSE("Boss_walk", (Application::PATH_SOUND + "SE/Boss_walk.mp3").c_str(), false);
 }
 
 // 更新
 void Enemy::Update(void)
 {
+	// シングルトンの呼び出し
+	SoundManager* seMana_ = SoundManager::GetInstance();
 	UpdateMove();
 	MV1RefreshCollInfo(list.modelId_);
+	// SEの座標の設定
+	seMana_->SetPosSE("Voice", list.pos_);
+	seMana_->SetPosSE("ZB_Attack", list.pos_);
+	// SEの聞こえる範囲
+	seMana_->SetAreaSE("Voice", 100.0f);
+	seMana_->SetAreaSE("ZB_Attack", 500.0f);
+	// SEの音量設定
+	seMana_->SetVolumeSE("Voice", 150);
+	seMana_->SetVolumeSE("ZB_Attack", 200);
 }
 
 // 描画
 void Enemy::Draw(void)
 {
+
 	if (!list.isDead_) 
 	{
 		MV1DrawModel(list.modelId_);
-		// 敵のHPバー
-		VECTOR worldPos = VAdd(list.pos_, VGet(0.0f, 50.0f, 0.0f)); // 敵の上の位置
-		worldPos.y += 100.0f;  // 頭の上
-		float screenX, screenY;
-		if (GetTransformPosition(&worldPos, &screenX, &screenY) == 0)
-		{
-			const int BAR_WIDTH = 40;
-			const int BAR_HEIGHT = 5;
-
-			// HPバー描画
-			float hpRatio = (float)list.hp_ / list.maxHp_;
-			if (hpRatio < 0.0f) hpRatio = 0.0f;
-			if (hpRatio > 1.0f) hpRatio = 1.0f;
-
-			int barX = static_cast<int>(screenX) - BAR_WIDTH / 2;
-			int barY = static_cast<int>(screenY) - BAR_HEIGHT / 2;
-
-			// 背景バー（グレー）
-			DrawBox(barX, barY, barX + BAR_WIDTH, barY + BAR_HEIGHT, GetColor(80, 80, 80), TRUE);
-			// HPバー（赤）
-			DrawBox(barX, barY, barX + (int)(BAR_WIDTH * hpRatio), barY + BAR_HEIGHT, GetColor(255, 0, 0), TRUE);
-			// デバッグ表示
-			DrawFormatString(0, 600, GetColor(255, 255, 255), "敵HP：%d / %d", list.hp_, list.maxHp_);
-			DrawFormatString(0, 630, GetColor(255, 255, 255), "敵攻撃力：%d", list.attackPower_);
-		}
-
+		//DrawBox(list.pos_.x, list.pos_.y, list.pos_.x + 80, list.pos_.y + 10, 0xff0000, false);
 	}
 }
 
 // 解放
 void Enemy::Release(void)
 {
+	// シングルトンの呼び出し
+	SoundManager* seMana_ = SoundManager::GetInstance();
+
 	MV1DeleteModel(list.modelId_);
+
+	// SEの停止
+	seMana_->StopSE("Voice");
+	seMana_->StopSE("ZB_Attack");
+	seMana_->StopSE("Boss_walk");
+
+	// 解放処理
+	seMana_->ReleaseSound("Voice");
+	seMana_->ReleaseSound("ZB_Attack");
+	seMana_->ReleaseSound("Boss_walk");
+
 }
 
 // 移動処理
 void Enemy::UpdateMove(void)
 {
 	const auto& anim = GetAnimInfo();
+
+	// シングルトンの呼び出し
+	SoundManager* seMana_ = SoundManager::GetInstance();
 
 	// 攻撃中は移動しない
 	if (anim->isAnimLock_) return;
@@ -157,7 +170,10 @@ void Enemy::UpdateMove(void)
 	}
 
 	if (!player_->GetIsDead())
-	{
+	{ 
+		// SEの再生
+		seMana_->PlaySE("Voice");
+
 		// プレイヤーとのXZ方向ベクトル
 		VECTOR toPlayer = VSub(player_->GetPlayerPos(), list.pos_);
 		toPlayer.y = 0.0f;
@@ -182,6 +198,8 @@ void Enemy::UpdateMove(void)
 		// 攻撃条件を満たす場合
 		if (!anim->isAnimLock_ && dist < list.attackRange_ && list.attackCooldown_ <= 0.0f)
 		{
+			// SEの再生
+			seMana_->PlaySE("ZB_Attack");
 			list.isAttack_ = true;
 			animation_->EnemyChangeAnimation(this, AnimationManager::EnemyAnim::ANIM_ATTACK, true);
 			list.attackCooldown_ = ATTACK_COOLDOWN_TIME;
@@ -191,6 +209,10 @@ void Enemy::UpdateMove(void)
 		// 攻撃範囲内だがクールダウン中 → 動かない
 		if (dist < list.attackRange_)
 		{
+
+			// SEの停止
+			seMana_->StopSE("ZB_Attack");
+
 			// 攻撃範囲内にいるので移動しない（向きだけ合わせる）
 			float targetAngleY = atan2f(dir.x, dir.z);
 			list.rot_.y = targetAngleY - INIT_MODEL_ROT_OFFSET.y * 2;
@@ -203,7 +225,9 @@ void Enemy::UpdateMove(void)
 		float animRatio = anim->currentAnimTime_ / anim->animTotalTime_;
 
 		if (list.isBoss_)
-		{
+		{   
+			// SEの再生
+			seMana_->PlaySE("Boss_walk");
 			list.moveVec_ = VScale(dir, MOVE_BOSS_SPEED_WALK);
 
 			list.nextPos_ = VAdd(list.pos_, list.moveVec_);
@@ -215,8 +239,11 @@ void Enemy::UpdateMove(void)
 		}
 		else
 		{
+			// SEの停止
+				seMana_->StopSE("Boss_walk");
 			if ((animRatio >= 0.8f && animRatio <= 1.0f) || (animRatio <= 0.1f) || (animRatio >= 0.3f && animRatio <= 0.6f))
 			{
+				
 				// プレイヤーが攻撃範囲外だったら接近開始
 				list.moveVec_ = VScale(dir, MOVE_SPEED_WALK);
 				list.nextPos_ = VAdd(list.pos_, list.moveVec_);
@@ -253,6 +280,12 @@ void Enemy::UpdateMove(void)
 		// プレイヤー死亡時は待機
 		animation_->EnemyChangeAnimation(this, AnimationManager::EnemyAnim::ANIM_IDLE);
 	}
+
+	if (player_->GetIsDead())
+	{
+		// SEの停止
+		seMana_->StopSE("Voice");
+	}
 }
 
 // 死亡フラグ
@@ -265,6 +298,7 @@ void Enemy::SetEnemyPos(const VECTOR& pos)
 {
 	list.pos_ = pos;
 	MV1SetPosition(list.modelId_, list.pos_);
+	MV1RefreshCollInfo(list.modelId_);
 }
 
 VECTOR Enemy::GetRightHandPosition(void)

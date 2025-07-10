@@ -13,8 +13,8 @@ class Player
 public:
 	// 定数
 	static constexpr float MOVE_SPEED_STOP = 0.0f;
-	static constexpr float MOVE_SPEED_WALK = 2.5f;
-	static constexpr float MOVE_SPEED_RUN = 8.0f;
+	static constexpr float MOVE_SPEED_WALK = 3.7f;
+	static constexpr float MOVE_SPEED_RUN = 12.0f;
 	static constexpr float FLASH_SPEED = 0.1f;
 	static constexpr float TRANSLUCENT = 0.5f;
 	static constexpr VECTOR INIT_MODEL_ROT_OFFSET = { 0.0f, DX_PI_F / 2.0f, 0.0f };
@@ -47,6 +47,7 @@ public:
 		MATRIX rotationMatrix_;
 
 		bool isDead_;
+		bool isRevive_;
 		bool isCrouch_;
 		bool isWeapon_;
 		bool isAttack_;
@@ -66,6 +67,14 @@ public:
 		bool isHitStop_;
 
 		float flashCounter_;
+
+		int ultHandle_;
+		int ultStartTime_;
+		int ultEndTime_;
+		bool ultFlg_;
+		bool IsUltPlay_;
+		bool isUltFinish_;
+		bool isUltUse_;
 	};
 
 public:
@@ -75,15 +84,19 @@ public:
 	// 初期化・更新・描画
 	void Init(EnemyManager* mng, AnimationManager* anim, Camera* camera);
 	void Update(float deltaTime);
+	void MovieUpdate(void);
 	void Draw(void);
+	void MovieDraw(void);
 	void Release(void);
 
 	// 状態更新
 	void HitStop(void);
-	void FullRecoveryHp(void);
+	void HalfHeal(void);
 	void AddAttack(int amount);
 	void AddMaxHp(int amount);
 	void SetCriticalDisplay(bool enable);
+	void Revive(void);
+	void TakeDamage(int damage);
 
 	// ゲッター
 	[[nodiscard]] Info GetInfo(void) const { return list; }
@@ -99,7 +112,7 @@ public:
 	[[nodiscard]] int GetAttackPower(void) const { return list.attackPower_; }
 	[[nodiscard]] int GetMaxHp(void) const { return PlayerMaxHp_; }
 	[[nodiscard]] int GetComboStep(void) const { return list.comboStep_; }
-	[[nodiscard]] int GetCriticalRate(void) const { return list.criticalRate_; }
+	[[nodiscard]] float GetCriticalRate(void) const { return list.criticalRate_; }
 	[[nodiscard]] float GetCriticalDamage(void) const { return list.criticalDamage; }
 	[[nodiscard]] MATRIX GetRotationMat(void) const { return list.rotationMatrix_; }
 	[[nodiscard]] bool GetIsWeapon(void) const { return list.isWeapon_; }
@@ -107,6 +120,11 @@ public:
 	[[nodiscard]] bool GetIsAttack(void) const { return list.isAttack_; }
 	[[nodiscard]] bool GetIsInvincible(void) const { return list.isInvincible_; }
 	[[nodiscard]] bool GetIsHitStop(void) const { return list.isHitStop_; }
+	[[nodiscard]] bool GetIsUlt(void)const { return list.ultFlg_; }
+	[[nodiscard]] bool GetIsUltFinish(void)const { return list.isUltFinish_; }
+	[[nodiscard]] bool GetIsUltUse(void)const { return list.isUltUse_; }
+	[[nodiscard]] bool GetIsUltPlay(void)const { return list.IsUltPlay_; }
+	[[nodiscard]] bool GetIsRevive(void)const { return list.isRevive_; }
 
 	// セッター
 	void SetPlayerPos(VECTOR pos) { list.pos_ = pos; }
@@ -114,7 +132,6 @@ public:
 	void SetMoveSpeed(float speed) { list.moveSpeed_ = speed; }
 	void SetDamageCooldown(int damage) { damageCooldown_ = damage; }
 	void DecreaseCoolDown(int damage) { damageCooldown_ -= damage; }
-	void TakeDamage(int damage);
 	void SetIsDead(bool flag) { list.isDead_ = flag; }
 	void SetIsAttack(bool flag) { list.isAttack_ = flag; }
 	void SetIsCombo(bool flag) { list.isCombo_ = flag; }
@@ -127,11 +144,12 @@ public:
 	void StartHitStop(float time) { list.hitStopTime_ = time; list.isHitStop_ = true; }
 	void AddCriticalRate(int value) { list.criticalRate_ += value; }
 	void AddCriticalDamage(int value) { list.criticalDamage += value; }
-
+	void SetIsUltFinish(bool flg) { list.isUltFinish_ = flg; }
+	void SetIsRevive(bool flg) { list.isRevive_ = flg; }
 	// 判定系
 	bool IsMove(VECTOR moveVec);
 	void SetRotation(void);
-
+	void EnableUlt();		// ウルト
 	// フレーム毎ダメージ受けたか
 	bool IsDamagedThisFrame_ = false;
 
@@ -144,14 +162,16 @@ private:
 	Info list;
 
 	// クールダウン・無敵
-	int damageCooldown_ = 0;
-	bool isDamaged_ = false;
-	float invincibleTime_ = 0.0f;
+	int damageCooldown_;
+	bool isDamaged_;
+	float invincibleTime_;
 
 	// クリティカル表示
-	bool showCriticalText_ = false;
-	float criticalDisplayTime_ = 0.0f;
-	int criticalFontHandle_ = -1;
+	bool showCriticalText_;
+	float criticalDisplayTime_;
+	int criticalFontHandle_;
+
+	bool isUltPlaydOnce_;
 
 	void UpdateMove(void);		// 全体の動き
 	void PlayerMove(int idleAnim, int walkAnim, int runAnim);		// 歩きなどの動き

@@ -8,8 +8,8 @@ public:
 	// スクリーンサイズ
 	static constexpr int SCREEN_SIZE_X = 1280;
 	static constexpr int SCREEN_SIZE_Y = 720;
-	static constexpr float HALF_SCREEN_SIZE_X = SCREEN_SIZE_X / 2.0f;
-	static constexpr float HALF_SCREEN_SIZE_Y = SCREEN_SIZE_Y / 2.0f;
+	static constexpr int HALF_SCREEN_SIZE_X = SCREEN_SIZE_X / 2;
+	static constexpr int HALF_SCREEN_SIZE_Y = SCREEN_SIZE_Y / 2;
 
 	// フレームレート
 	static constexpr float FRAME_RATE = (1000 / 60);

@@ -14,6 +14,8 @@ class Trail3D;
 class AnimationManager;
 class HpBar;
 class Buff;
+class MoviePlayer;
+class BossEnemy;
 
 class Game : public SceneBase
 {
@@ -31,9 +33,6 @@ public:
 	void Draw(void) override;		// 描画
 	void Release(void) override;	// 解放
 
-	// カメラの取得
-	Camera* GetCamera(void) const;
-
 private:
 	int menuimg_;
 	int menuSizeX_;
@@ -44,6 +43,11 @@ private:
 	int centerY_;
 
 	int selectindex_;
+
+	// 無限再生を防ぐようのフラグ
+	bool isBossBGMStated;
+
+	const float scale = 1.3f; // 拡大率
 
 	// ポインター
 	// カメラ
@@ -71,7 +75,7 @@ private:
 	AnimationManager* animation_;
 
 	// HPバー
-	HpBar* hpbar_;
+	HpBar* hpBar_;
 
 	// バフ
 	Buff* buff_;

@@ -4,6 +4,7 @@
 class GameClear : public SceneBase
 {
 public:
+
 	// コンストラクタ
 	GameClear(void);
 
@@ -16,6 +17,9 @@ public:
 	void Release(void) override;	// 解放
 
 private:
+	// 画像
+	int clearImg_;
+
 	int waitFrame_;
 
 	// カーソルが範囲内にあるかどうか

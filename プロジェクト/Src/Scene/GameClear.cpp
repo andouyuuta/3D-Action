@@ -10,7 +10,9 @@
 // コンストラクタ
 GameClear::GameClear(void) : SceneBase()
 {
+	clearImg_ = -1;
 	mouseFlg_ = false;
+	waitFrame_ = 0;
 }
 
 // デストラクタ
@@ -21,6 +23,8 @@ GameClear::~GameClear(void)
 // 初期化
 void GameClear::Init(void)
 {
+	clearImg_ = LoadGraph("Data/Image/Gameclear.png");
+
 	waitFrame_ = 10;
 }
 
@@ -42,16 +46,18 @@ void GameClear::Update(void)
 	if (ins.IsPadBtnTrgDown(InputManager::JOYPAD_NO::PAD1, InputManager::JOYPAD_BTN::DOWN) || ins.IsTrgDown(KEY_INPUT_SPACE) ||
 		ins.IsTrgMouseLeft())
 	{
-		SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::GAME);
+		SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::TITLE);
 	}
 }
 
 // 描画
 void GameClear::Draw(void)
 {
+	// タイトル画像の描画
+	DrawExtendGraph(0, 0, Application::SCREEN_SIZE_X, Application::SCREEN_SIZE_Y, clearImg_, true);
+
 	// 文字の描画
-	DrawFormatString(20, 20, GetColor(0xff, 0xff, 0xff), "ゲームクリア画面");
-	DrawFormatString(300, 300, GetColor(0xff, 0xff, 0xff), "左クリックやスペース、Aボタンでタイトルに");
+	DrawFormatString(600, 500, GetColor(0xff, 0xff, 0xff), "左クリックやスペース、Aボタンでタイトルに");
 
 }
 
@@ -59,5 +65,6 @@ void GameClear::Draw(void)
 void GameClear::Release(void)
 {
 	// 画像の解放
-
+	DeleteGraph(clearImg_);
+	clearImg_ = -1;
 }

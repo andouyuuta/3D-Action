@@ -8,6 +8,7 @@ struct BuffData
 {
     int id;                     // 識別番号
     std::string imagePath_;     // 画像パス
+    int AppearRate;             // 出現確率
     int attackUp_;              // 攻撃力上昇量
     int hpUp_;                  // HP上昇量
     int successRate_;           // 成功確率(％)
@@ -26,7 +27,7 @@ class BuffDataManager
 public:
     static BuffDataManager& GetInstance();
 
-    BuffDataManager() = default;
+    BuffDataManager(void);
 
     void Release(void);
 

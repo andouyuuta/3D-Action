@@ -4,8 +4,8 @@
 class Stage
 {
 public:
-	Stage();		// コンストラクタ
-	~Stage();		// デストラクタ
+	Stage(void);		// コンストラクタ
+	~Stage(void);		// デストラクタ
 
 	void Init(void);	// 初期化
 	void Update(void);	// 更新

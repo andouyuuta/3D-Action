@@ -5,17 +5,14 @@
 #include <map>
 #include <unordered_map>
 
-
 class SoundManager
 {
 public:
 
 	// クリエイトインスタンス(ここでSoundManagerを作る一回のみ)
 	static void CreateInstance(void);
-
 	// インスタンスを取得するメソッド(シングルトン)
 	static SoundManager* GetInstance();
-
 	// インスタンスを削除するメソッド(ゲームの終了前に必ず呼ぶ)
 	static void DeleteInstance();
 
@@ -47,6 +44,7 @@ public:
 
 	// 解放処理
 	void ReleaseSound(const std::string& key);
+	void ReleaseAll(void);
 
 	// 3D空間上の1m
 	void Set3DSoundMetre(float Distace);
@@ -57,7 +55,6 @@ private:
 	// 他のところで使えないようにしている（外部参照を防ぐ）
 	// コンストラクタ
 	SoundManager();
-
 	// デストラクタ
 	~SoundManager();
 
@@ -72,9 +69,10 @@ private:
 	// 効果音のハンドルを格納するマップ
 	// キーとハンドルのペア
 	std::unordered_map<std::string, int> seHandles;
+	std::unordered_map<std::string, int>bgmHandles;
 
 	// ハンドルID
-	int bgmHandle;		// BGM
+	//int bgmHandle;		// BGM
 
 };
 

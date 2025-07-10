@@ -3,7 +3,7 @@
 #include "Trail3D.h"
 
 // コンストラクタ
-Sword::Sword()
+Sword::Sword(void)
 {
 	player_ = nullptr;
 	trail_ = nullptr;
@@ -17,7 +17,7 @@ Sword::Sword()
 }
 
 // デストラクタ
-Sword::~Sword()
+Sword::~Sword(void)
 {
 	Release();
 }
@@ -42,7 +42,7 @@ void Sword::Init(Player* player)
 }
 
 // 更新処理
-void Sword::Update()
+void Sword::Update(void)
 {
 	int playerModel = player_->GetPlayerModel();
 	int rightHandIdx = player_->GetRightHandIndex();

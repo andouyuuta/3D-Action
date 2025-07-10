@@ -3,9 +3,18 @@
 #include "../Manager/InputManager.h"
 #include "../Manager/RandomManager.h"
 #include "../Manager/BuffDataManager.h"
+#include "../Manager/SoundManager.h"
 #include "../Object/EnemyManager.h"
 #include "../Application.h"
+#include <unordered_set>
 
+namespace SelectDraw
+{
+    constexpr int X = Application::HALF_SCREEN_SIZE_X - 100;
+    constexpr int Y = Application::SCREEN_SIZE_Y - 100;
+    constexpr int Width = Application::HALF_SCREEN_SIZE_X+100;
+    constexpr int Height = Application::SCREEN_SIZE_Y;
+}
 // コンストラクタ
 Buff::Buff(void)
 {
@@ -15,6 +24,7 @@ Buff::Buff(void)
     canExit_ = false;
     selectedIndex_ = 0;
     stickCoolTime_ = 0;
+    selectHandle_ = -1;
     isUseMouse_ = false;
     lx = 0;
     mouseX_ = 0;
@@ -29,6 +39,8 @@ Buff::Buff(void)
 
     prevMouseX_ = 0;
     prevMouseY_ = 0;
+
+    buffUIInfos_ = {};
 }
 
 // デストラクタ
@@ -43,16 +55,27 @@ void Buff::Init(Player* player, EnemyManager* mng)
     player_ = player;
     enemymng_ = mng;
 
+    selectHandle_ = LoadGraph((Application::PATH_IMAGE + "Select.png").c_str());
+
     BuffDataManager::GetInstance().LoadFromCSV("Data/BuffData.csv");
 
     GetMousePoint(&prevMouseX_, &prevMouseY_);
 
     ShuffleNumber();
+
+    // シングルトンの呼び出し
+    SoundManager* seMana_ = SoundManager::GetInstance();
+
+    // SEのロード
+    seMana_->LoadSE("UP", (Application::PATH_SOUND + "SE/Buff_up.mp3").c_str(), false);
 }
 
 // 更新
 void Buff::Update(void)
 {
+    // シングルトンの呼び出し
+    SoundManager* seMana_ = SoundManager::GetInstance();
+
     if (isSelected_)
     {
         static int waitTime = 30; // 約0.5秒(60fps)
@@ -91,20 +114,38 @@ void Buff::Update(void)
     if (isUseMouse_)
     {
         MouseSelect();
-    }else
+    }
+    else
     {
         ControllerSelect();
     }
-    // Aボタンで決定
-    if (ins.IsPadBtnTrgDown(padNo, InputManager::JOYPAD_BTN::DOWN)||
+ 
+    // ==== 決定ボタンマウス判定 ====
+    if (isUseMouse_ &&
+        mouseX_ >= SelectDraw::X && mouseX_ <= SelectDraw::Width &&
+        mouseY_ >= SelectDraw::Y && mouseY_ <= SelectDraw::Height &&
         ins.IsTrgMouseLeft())
     {
+        seMana_->PlaySE("UP");
         isSelected_ = true;
         enemymng_->SetIsWaitingSlect(false);
         ApplyBuffSelect(selectedIndex_);
     }
-}
 
+    // コントローラーで決定（Aボタン）
+    if (!isUseMouse_ && ins.IsPadBtnTrgDown(padNo, InputManager::JOYPAD_BTN::DOWN))
+    {
+        seMana_->PlaySE("UP");
+        isSelected_ = true;
+        enemymng_->SetIsWaitingSlect(false);
+        ApplyBuffSelect(selectedIndex_);
+    }
+
+    if (enemymng_->IsWaitingForSkillSelect())
+    {
+        seMana_->StopSE("UP");
+    }
+}
 
 // 描画
 void Buff::Draw(void)
@@ -114,40 +155,48 @@ void Buff::Draw(void)
 
     for (int i = 0; i < DRAW_BUFF; i++)
     {
+        const UIInfo& info = buffUIInfos_[i];
         int index = number_[i];
         const auto& data = BuffDataManager::GetInstance().GetBuffData(index);
 
-        // グラフィックサイズ取得（初回だけでもOK）
-        int width = 0, height = 0;
-        GetGraphSize(data.handleId_, &width, &height);
-
-        drawW = width * SCALE;
-        drawH = height * SCALE;
-
-        x = startX + i * (drawW + SPACING);
-
-        // 選択中の枠
         if (i == selectedIndex_)
         {
-            DrawBoxAA((int)(x - 5), (int)(y - 5), (int)(x + drawW + 5), (int)(y + drawH + 5), GetColor(255, 255, 0), FALSE);
+            DrawBoxAA(static_cast<float>(info.graph_X - 5), static_cast<float>(info.graph_Y - 5),
+                info.graph_X + info.graph_Width * SCALE + 5.0f,
+                info.graph_Y + info.graph_Height * SCALE + 5.0f,
+                GetColor(255, 255, 0), FALSE);
         }
 
-        // 描画
         DrawRotaGraph2(
-            x + drawW / 2, y + drawH / 2,
-            width / 2, height / 2,
-            SCALE, 0.0, data.handleId_, TRUE
-        );
+            info.graph_X + (int)(info.graph_Width * SCALE / 2),
+            info.graph_Y + (int)(info.graph_Height * SCALE / 2),
+            info.graph_Width / 2, info.graph_Height / 2,
+            SCALE, 0.0, info.handleId_, TRUE);
+
+        // 出現確率表示
+        DrawFormatString(info.graph_X, info.graph_Y + (int)(drawH + 10),
+            GetColor(100, 255, 100),
+            "ID:%d 確率:%d", data.id, data.AppearRate);
     }
     // 操作説明
     DrawFormatString(100, 650, GetColor(255, 255, 255), "← → で選択、Aボタンで決定");
 
+    // 決定ボタン描画
+    DrawExtendGraph(SelectDraw::X, SelectDraw::Y, SelectDraw::Width, SelectDraw::Height, selectHandle_, true);
 }
 
 // 解放
 void Buff::Release(void)
 {
     BuffDataManager::GetInstance().Release();
+    
+    // シングルトンの呼び出し
+    SoundManager* seMana_ = SoundManager::GetInstance();
+
+    // SEの停止
+    seMana_->StopSE("UP");
+    // SEの解放
+    seMana_->ReleaseSound("UP");
 }
 
 void Buff::Reset(void)
@@ -166,7 +215,7 @@ void Buff::ApplyBuffSelect(int index)
     // 成功率付きのバフ（確率判定あり）
     if (data.successRate_ < 100)
     {
-        int r = RandomManager::Critical(100);
+        int r = RandomManager::Random(100);
         if (r < data.successRate_)
         {
             player_->AddAttack(data.valueSuccess_);
@@ -201,24 +250,24 @@ void Buff::MouseSelect(void)
     startX = Application::HALF_SCREEN_SIZE_X - totalWidth / 2.0f;
     y = Application::HALF_SCREEN_SIZE_Y - drawH / 2.0f;
 
-    for (int i = 0; i < DRAW_BUFF; ++i)
+    if (ins.IsTrgMouseLeft())
     {
-        float x = startX + i * (drawW + SPACING);
-
-        if (mouseX_ >= x && mouseX_ <= x + drawW &&
-            mouseY_ >= y && mouseY_ <= y + drawH)
+        for (int i = 0; i < DRAW_BUFF; ++i)
         {
-            selectedIndex_ = i;
+            float x = startX + i * (drawW + SPACING);
 
-            // 左クリックで決定
-            if (ins.IsTrgMouseLeft())
+            if (mouseX_ >= x && mouseX_ <= x + drawW &&
+                mouseY_ >= y && mouseY_ <= y + drawH)
             {
-                isSelected_ = true;
-                enemymng_->SetIsWaitingSlect(false);
-                ApplyBuffSelect(selectedIndex_);
-                return;
+                selectedIndex_ = i;
+
+                // 左クリックで決定
+                if (ins.IsTrgMouseLeft())
+                {
+                    selectedIndex_ = i;
+                }
+                break; // 一つだけに反応すれば良い
             }
-            break; // 一つだけに反応すれば良い
         }
     }
 }
@@ -243,20 +292,66 @@ void Buff::ControllerSelect(void)
 
 void Buff::ShuffleNumber(void)
 {
-    // 画像サイズ取得とUIInfoセット
-    for (int i = 0; i < NUM_BUFFS; i++)
+    number_.clear();
+    auto& buffmng = BuffDataManager::GetInstance();
+    const int buffCount = BuffDataManager::GetInstance().GetBuffCount();
+    
+    // 出現候補リストを確率に応じて構築
+    std::vector<int> pool;
+    for (int index = 0; index < buffCount; ++index)
     {
-        /*if (buffInfo_[i].handleId_ != -1)
+        const auto& data = buffmng.GetBuffDataByIndex(index);
+        for (int j = 0; j < data.AppearRate; ++j)
         {
-            GetGraphSize(buffInfo_[i].handleId_, &buffInfo_[i].graph_Width, &buffInfo_[i].graph_Height);
-        }*/
-        number_[i] = i;
+            pool.push_back(index);
+        }
     }
+    if (pool.empty())
+    {
+        ErrorLogAdd("バフの出現候補が空です");
+        return;
+    }
+
+    // シャッフルして、重複しない数を抽出
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::shuffle(number_.begin(), number_.end(), gen);
+    std::shuffle(pool.begin(), pool.end(), gen);
 
-    // 選択インデックスなどもリセット
+    std::unordered_set<int> used;
+    for (int i = 0; i < (int)pool.size() && (int)number_.size() < DRAW_BUFF; ++i)
+    {
+        if (used.count(pool[i]) == 0)
+        {
+            number_.push_back(pool[i]);
+            used.insert(pool[i]);
+        }
+    }
+
+    // UIInfo 初期化
+    if (!number_.empty())
+    {
+        // まず最初のバフのサイズで描画サイズを決定
+        const auto& firstData = buffmng.GetBuffDataByIndex(number_[0]);
+        drawW = firstData.graph_Width * SCALE;
+        drawH = firstData.graph_Height * SCALE;
+
+        totalWidth = drawW * DRAW_BUFF + SPACING * (DRAW_BUFF - 1);
+        startX = Application::HALF_SCREEN_SIZE_X - totalWidth / 2.0f;
+        y = Application::HALF_SCREEN_SIZE_Y - drawH / 2.0f;
+
+        for (int i = 0; i < (int)number_.size(); ++i)
+        {
+            const auto& data = buffmng.GetBuffDataByIndex(number_[i]);
+            UIInfo& info = buffUIInfos_[i];
+
+            info.handleId_ = data.handleId_;
+            info.graph_Width = data.graph_Width;
+            info.graph_Height = data.graph_Height;
+            info.graph_X = static_cast<int>(startX + i * (drawW + SPACING));
+            info.graph_Y = static_cast<int>(y);
+        }
+    }
+
     selectedIndex_ = 0;
     stickCoolTime_ = 0;
     isSelected_ = false;

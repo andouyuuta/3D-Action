@@ -7,9 +7,10 @@ class BossEnemy : public Enemy
 {
 public:
     // ステータス
-    static constexpr float BOSS_MAX_HP = 1500.0f;
+    static constexpr int BOSS_MAX_HP = 10000;
     static constexpr float JUMP_ATTACK_RANGE = 500.0f;
     static constexpr float JUMP_ATTACK_DURATION = 0.8f;
+    static constexpr int BOSS_ATTACK = 120;
 
     // アニメーション割合
     static constexpr float JUMP_RATIO = 0.1f;
@@ -31,6 +32,7 @@ public:
     void Init(int bossModelID, int hp, int attack, Player* player, AnimationManager* anim, AnimationManager::AnimationInfo* animinfo) override;
     void Update(void) override;
     void Draw(void) override;
+    void Release(void);
 
     // === ゲッター ===
     [[nodiscard]] bool GetIsJumpAttack(void) const { return isJumpAttack_; }

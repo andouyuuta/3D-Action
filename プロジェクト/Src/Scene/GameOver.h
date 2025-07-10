@@ -18,6 +18,7 @@ public:
 private:
 	// ‰æ‘œ
 	int hightLight_;
+	int overImg_;
 
 	int waitFrame_;
 

@@ -1,6 +1,6 @@
 #include "Stage.h"
 
-Stage::Stage()
+Stage::Stage(void)
 {
 	list.model_ = -1;
 	list.pos_ = { 0.0f,0.0f,0.0f };
@@ -8,7 +8,7 @@ Stage::Stage()
 	list.scale_ = { 1.0f,1.0f,1.0f };
 }
 
-Stage::~Stage()
+Stage::~Stage(void)
 {
 
 }

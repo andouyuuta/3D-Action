@@ -1,6 +1,7 @@
 #include "AnimationManager.h"
 #include "SceneManager.h"
 #include "InputManager.h"
+#include "RandomManager.h"
 #include "../Object/Player.h"
 #include "../Object/EnemyManager.h"
 #include "../Object/Enemy.h"
@@ -12,13 +13,13 @@ namespace PlayerAnimSpeed
 	const float CROUCH_ANIM_SPEED = 1.5f;	//しゃがんでいるとき
 	const float CROUCH_ATTACK_SPEED = 1.0f;	//しゃがみ攻撃
 	const float DEAD_ANIM_SPEED = 0.2f;		//死んでいる時
-	const float ATTACK_ANIM_SPEED = 0.75f;	//攻撃している
+	const float ATTACK_ANIM_SPEED = 0.85f;	//攻撃している
 }
 
 namespace EnemyAnimSpeed
 {
 	// アニメーションの再生速度
-	const float ANIM_SPEED = 0.5f;					// 生きている時
+	const float ANIM_SPEED = 1.0f;					// 生きている時
 	const float ATTACK_ANIM_SPEED = 0.5f;			// 攻撃時
 	const float DEAD_ANIM_SPEED = 0.2f;				// 死んでいる時
 }
@@ -67,6 +68,32 @@ void AnimationManager::Update(void)
 {
 	PlayerAnimationPlayback();
 	EnemyAnimationPlayback();
+}
+
+void AnimationManager::Release(void)
+{
+	// プレイヤーのアニメーション解放
+	if (player_ && playerInfo.animAttachNo_ != -1)
+	{
+		MV1DetachAnim(player_->GetPlayerModel(), playerInfo.animAttachNo_);
+		playerInfo.animAttachNo_ = -1;
+	}
+
+	// 敵のアニメーション解放
+	if (enemymng_)
+	{
+		for (auto& enemy : enemymng_->GetEnemyPtrs())
+		{
+			auto* anim = enemy->GetAnimInfo();
+			if (!anim) continue;
+
+			if (anim->animAttachNo_ != -1)
+			{
+				MV1DetachAnim(enemy->GetModel(), anim->animAttachNo_);
+				anim->animAttachNo_ = -1;
+			}
+		}
+	}
 }
 
 // プレイヤー攻撃再生(今のコンボ数、今のコンボ、次のステップ、割合指定、アニメーションの残り時間(割合))
@@ -146,9 +173,27 @@ void AnimationManager::PlayerAnimationPlayback(void)
 			});
 		break;
 	case Death:		//死亡
-		AdvanceAnimation(PlayerAnimSpeed::DEAD_ANIM_SPEED, []() {
-			SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::GAMEOVER);
+		AdvanceAnimation(PlayerAnimSpeed::DEAD_ANIM_SPEED, [this]() {
+			if (!player_->GetIsRevive())
+			{
+				if (RandomManager::Random(100.0f))
+				{
+					player_->Revive();
+					PlayerChangeAnimation(PlayerAnim::Revive, true);
+				}
+				else
+				{
+					SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::GAMEOVER);
+				}
+			}
+			else
+			{
+				SceneManager::GetInstance().ChangeScene(SceneManager::SCENE_ID::GAMEOVER);
+			}
 			}, []() {});
+		break;
+	case Revive:
+		AdvanceAnimation(PlayerAnimSpeed::ANIM_SPEED, []() {}, []() {});
 		break;
 	case Crouch:		//しゃがみ(防御)
 	case Crouch_Cancel:		//しゃがみ解除
@@ -255,14 +300,14 @@ void AnimationManager::EnemyChangeAnimation(Enemy* enemy, int idx, bool lock)
 		anim->animIndex_ = idx;
 		anim->animAttachNo_ = MV1AttachAnim(enemy->GetModel(), anim->animIndex_);
 		anim->animTotalTime_ = MV1GetAttachAnimTotalTime(enemy->GetModel(), anim->animAttachNo_);
+
 		anim->currentAnimTime_ = 0.0f;
+
 		anim->isAnimLock_ = lock;
 
-		// ポインタ直接更新なのでSetAnimInfoは不要かも？
-		// enemy->SetAnimInfo(anim);
-
-		MV1SetAttachAnimTime(enemy->GetModel(), anim->animAttachNo_, 0.0f);
+		MV1SetAttachAnimTime(enemy->GetModel(), anim->animAttachNo_, anim->currentAnimTime_);
 	}
+	MV1SetAttachAnimTime(enemy->GetModel(), anim->animAttachNo_, anim->currentAnimTime_);
 }
 
 // ダメージを受けたアニメーション再生中か

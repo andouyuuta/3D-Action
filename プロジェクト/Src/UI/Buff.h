@@ -2,18 +2,18 @@
 #include "UIBase.h"
 #include "../Object/Player.h"
 #include <algorithm>
-#include <array>
 #include <string>
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <array>
 
 class EnemyManager;
 
 class Buff : public UIBase
 {
 public:
-    static constexpr int NUM_BUFFS = 5;         // バフの種類
+    static constexpr int NUM_BUFFS = 10;         // バフの種類
     static constexpr int DRAW_BUFF = 3;         // 描画する数(変更しない)
     static constexpr float SCALE = 0.75f;       // 描画スケール
     static constexpr int SPACING = 50;          // 画像同士の間隔
@@ -43,7 +43,10 @@ private:
     Player* player_;
     EnemyManager* enemymng_;
 
-    std::array<int, NUM_BUFFS> number_;          // 表示順だけを管理
+    std::array<UIInfo, DRAW_BUFF> buffUIInfos_; // UIInfoを３つ管理
+    std::vector<int> number_;                   // 出現確率の抽選バフID
+
+    int selectHandle_;
 
     int selectedIndex_;
     int stickCoolTime_;                          // スティック連続入力防止のクールタイム
