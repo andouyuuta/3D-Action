@@ -66,8 +66,15 @@ void SceneManager::Init3D(void)
 	// ライトをやや斜めに
 	ChangeLightTypeDir({ 0.3f, -0.7f, 0.5f });
 
-	// 環境光を追加して陰影をなめらかに
-	SetLightAmbColor(GetColorF(100.0f, 100.0f, 100.0f,1.0f));
+	// ライトをほぼ真上（バランス型）
+	VECTOR lightDir = VNorm(VGet(0.05f, -1.0f, 0.05f));
+	ChangeLightTypeDir(lightDir);
+
+	SetLightDifColor(GetColorF(0.82f, 0.82f, 0.82f, 0.0f));
+	SetLightAmbColor(GetColorF(0.55f, 0.55f, 0.55f, 1.0f));
+	SetLightSpcColor(GetColorF(0.2f, 0.2f, 0.2f, 1.0f));
+
+	SetUseSpecular(true);
 }
 
 void SceneManager::Update(void)
